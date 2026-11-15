@@ -432,6 +432,29 @@ stop_osd
 # osDisplay stays under the pointer when the scale changes.
 WL_LOG=$OSD_DIR/build/ui-wayland.log
 : >"$WL_LOG"
+# Buffers destroyed while the cursor surface still showed them: a theme gone too
+# early. Follows what each surface has attached, from the protocol log.
+cursor_kept() {
+	awk '
+	match($0, /wl_pointer#[0-9]+\.set_cursor\([0-9]+, wl_surface#[0-9]+/) {
+		split(substr($0, RSTART, RLENGTH), f, /[#(, ]+/); cur = f[5]
+	}
+	match($0, /wl_surface#[0-9]+\.attach\((wl_buffer#[0-9]+|nil)/) {
+		split(substr($0, RSTART, RLENGTH), f, /[#.()]+/)
+		att[f[2]] = f[4] == "nil" ? "" : f[5]
+	}
+	match($0, /wl_buffer#[0-9]+\.destroy\(\)/) {
+		split(substr($0, RSTART, RLENGTH), f, /[#.()]+/)
+		if (cur != "" && att[cur] == f[2]) print f[2]
+	}' "$WL_LOG"
+}
+destroyed() { grep -c 'wl_buffer#[0-9]*\.destroy()' "$WL_LOG"; }
+set_scale() { # n: the output's scale, reloaded
+	sed -i '/outputScale/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
+	echo "Mwm*HEADLESS-1*outputScale: $1" >>"$XDG_CONFIG_HOME/mwc/mwmrc"
+	reload_mwc
+	check "the output is scaled by $1" "[ \"\$(global output_HEADLESS-1 scale)\" = ${1}00 ]"
+}
 # The last size the cursor's viewport was given, "w h"; -1 -1 is none.
 cursor_dest() {
 	grep -o 'wp_viewport#[0-9]*\.set_destination(-\?[0-9]*, -\?[0-9]*)' "$WL_LOG" |
@@ -457,20 +480,34 @@ check "and the viewport shows it at 8, not 30 or 10" "[ \"\$(cursor_dest)\" = '8
 cw4=$(global cursor cw)
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
 # Back to 2 with the pointer kept on the window: the cursor follows without an enter.
-sed -i '/outputScale/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
-echo 'Mwm*HEADLESS-1*outputScale: 2' >>"$XDG_CONFIG_HOME/mwc/mwmrc"
-reload_mwc
+GONE=$(destroyed) SINCE=$(($(wc -l <"$WL_LOG") + 1))
+set_scale 2
 check "a new scale loads the cursor again at once" \
 	"cursor_ok && [ \"\$(global cursor cw)\" != $cw4 ] && [ \"\$(global cursor cscale)\" = 2 ]"
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
 check "there the scale divides it, and the viewport is unset" \
 	"[ \"\$(cursor_dest)\" = '-1 -1' ]"
-# The old theme's buffers go with it: the cursor surface lets go of them first.
+# The old theme goes once the new cursor is on the surface: never a destroyed buffer
+# under the pointer, and no empty cursor in between.
+check "the old theme is gone" "[ \"\$(destroyed)\" -gt $GONE ]"
+[ -z "$(cursor_kept)" ] || fail "the cursor showed destroyed buffers: $(cursor_kept)"
 csurf=$(grep -o 'set_cursor([0-9]*, wl_surface#[0-9]*' "$WL_LOG" | tail -1 | sed 's/.*#//')
-grep -q "wl_surface#$csurf\.attach(nil" "$WL_LOG" ||
-	fail "the cursor surface wl_surface#$csurf keeps the old theme's buffer"
-echo "ok: the old theme's buffer is taken off the cursor surface"
+tail -n +"$SINCE" "$WL_LOG" | grep -q "wl_surface#$csurf\.attach(nil" &&
+	fail "the cursor went empty while the pointer stayed on osDisplay"
+echo "ok: with the pointer on it, the new cursor comes before the old theme goes"
+# The pointer leaves, the scale changes: the cursor isn't shown, and the surface lets
+# go of the old theme's buffer before that goes.
+LEFT=$(grep -c 'wl_pointer#[0-9]*\.leave(' "$WL_LOG")
+do_input move 1000 600
+check "the pointer leaves osDisplay" \
+	"[ \"\$(grep -c 'wl_pointer#[0-9]*\.leave(' \"$WL_LOG\")\" -gt $LEFT ]"
+GONE=$(destroyed)
+set_scale 4
+check "the old theme is gone" "[ \"\$(destroyed)\" -gt $GONE ]"
+[ -z "$(cursor_kept)" ] || fail "the cursor surface kept destroyed buffers: $(cursor_kept)"
+echo "ok: with the pointer off it, the surface lets go before the old theme goes"
 stop_osd
+set_scale 2
 
 # A size far too large is bounded, not multiplied past what an int holds: the
 # theme's largest, 96 at scale 2.

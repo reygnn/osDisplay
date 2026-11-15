@@ -120,8 +120,8 @@ static int cursor_vw, cursor_vh; /* its size on the window, if the viewport sets
 static int cursor_buf_scale;     /* its buffers' scale: one that divides their size */
 static uint32_t ptr_serial;      /* of the last enter, for set_cursor */
 static int ptr_on;               /* the pointer is over the window */
-static void cursor_load(void);
-static void cursor_show(void);
+static void cursor_update(void);
+static int cursor_show(void);
 
 static struct wl_keyboard *keyboard;
 static struct xkb_context *xkb;
@@ -714,8 +714,7 @@ static void ptr_enter(void *data, struct wl_pointer *p, uint32_t serial,
 {
 	ptr_on = s == surface;
 	ptr_serial = serial;
-	cursor_load();
-	cursor_show();
+	cursor_update();
 }
 
 static void ptr_leave(void *data, struct wl_pointer *p, uint32_t serial,
@@ -899,21 +898,17 @@ static const struct xdg_toplevel_listener toplevel_listener = {
 	.close = top_close,
 };
 
-/* The theme's cursor at the window's scale, loaded again when that changes. */
-static void cursor_load(void)
+/* The theme's cursor at the window's scale, loaded again when that changes, and
+ * shown if the pointer is on the window. The old theme goes only once the new one is
+ * there and its cursor shown, or the surface let go of it: the pointer is never left
+ * on a destroyed buffer or without a cursor. A load that fails keeps the old one and
+ * is tried again on the next enter. */
+static void cursor_update(void)
 {
-	if (cursor_scale == scale)
+	if (cursor_scale == scale) {
+		cursor_show();
 		return;
-	if (cursor_theme) {
-		/* Its buffers go with it: none may stay on the cursor surface. */
-		if (cursor_surf) {
-			wl_surface_attach(cursor_surf, NULL, 0, 0);
-			wl_surface_commit(cursor_surf);
-		}
-		wl_cursor_theme_destroy(cursor_theme);
 	}
-	cursor_theme = NULL;
-	cursor_img = NULL;
 	/* Bounded, so that size * scale cannot overflow. */
 	const char *s = getenv("XCURSOR_SIZE");
 	char *end = NULL;
@@ -921,14 +916,19 @@ static void cursor_load(void)
 	if (!end || *end || size < 1)
 		size = 24;
 	size = MIN(size, 256);
-	cursor_theme = wl_cursor_theme_load(getenv("XCURSOR_THEME"), size * scale, shm);
-	if (!cursor_theme)
-		return; /* tried again on the next enter */
-	struct wl_cursor *c = wl_cursor_theme_get_cursor(cursor_theme, "default");
-	if (!c)
-		c = wl_cursor_theme_get_cursor(cursor_theme, "left_ptr");
-	if (!c)
+	struct wl_cursor_theme *t = wl_cursor_theme_load(getenv("XCURSOR_THEME"),
+		size * scale, shm);
+	struct wl_cursor *c = t ? wl_cursor_theme_get_cursor(t, "default") : NULL;
+	if (t && !c)
+		c = wl_cursor_theme_get_cursor(t, "left_ptr");
+	if (!c) {
+		if (t)
+			wl_cursor_theme_destroy(t);
+		cursor_show();
 		return;
+	}
+	struct wl_cursor_theme *old = cursor_theme;
+	cursor_theme = t;
 	cursor_img = c->images[0];
 	cursor_scale = scale;
 	if (!cursor_surf)
@@ -955,13 +955,19 @@ static void cursor_load(void)
 				break;
 			}
 	}
+	if (!cursor_show() && old) {
+		wl_surface_attach(cursor_surf, NULL, 0, 0);
+		wl_surface_commit(cursor_surf);
+	}
+	if (old)
+		wl_cursor_theme_destroy(old);
 }
 
-/* The cursor on the window, while the pointer is over it. */
-static void cursor_show(void)
+/* The cursor on the window, while the pointer is over it; 0 if not shown. */
+static int cursor_show(void)
 {
 	if (!pointer || !ptr_on || !cursor_img)
-		return;
+		return 0;
 	int d = cursor_buf_scale;
 	int hx = cursor_img->hotspot_x / d, hy = cursor_img->hotspot_y / d;
 	if (cursor_vw > 0) {
@@ -977,6 +983,7 @@ static void cursor_show(void)
 	wl_surface_attach(cursor_surf, wl_cursor_image_get_buffer(cursor_img), 0, 0);
 	wl_surface_damage_buffer(cursor_surf, 0, 0, cursor_img->width, cursor_img->height);
 	wl_surface_commit(cursor_surf);
+	return 1;
 }
 
 /* Sharp on a scaled output: wl_compositor 6 says which scale the output it is on
@@ -996,8 +1003,7 @@ static void surf_preferred_scale(void *data, struct wl_surface *s, int32_t facto
 	scale = factor;
 	dirty = 1;
 	/* Not only at the next enter: the pointer may stay where it is. */
-	cursor_load();
-	cursor_show();
+	cursor_update();
 }
 
 static void surf_preferred_transform(void *data, struct wl_surface *s,
@@ -1088,7 +1094,7 @@ int main(int argc, char **argv)
 			"or xdg_wm_base\n");
 		return 1;
 	}
-	cursor_load();
+	cursor_update();
 	theme_init();   /* sample needs bar_max */
 	sample();
 	arm_timer();
