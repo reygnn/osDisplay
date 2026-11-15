@@ -18,6 +18,10 @@ The width only grows: after a core went offline or swap was switched off, the wi
 stays that wide until osDisplay restarts. Cores are placed by their number, so a gap
 in the numbering is an empty bar.
 
+The size never follows the compositor. A compositor that maximizes the window anyway
+gets it at its own size, and one that holds to xdg-shell may end it for that. mwc
+never maximizes a docked window or one of fixed size.
+
 It draws at the integer scale the compositor asks for with wl_compositor 6. A
 fractional scale is drawn at the next integer and scaled down by the compositor; with
 wl_compositor 4 or 5 it never asks, and there the window stays at scale 1 and is
