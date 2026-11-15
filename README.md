@@ -50,9 +50,9 @@ boot. Memory in use is what `MemAvailable` in `/proc/meminfo` does not count, so
 cache the kernel can drop counts as free.
 
 The window is as high as deskControl, pulseControl and digitalClock with the same
-font, so they line up in the dock (deskControl from two desktops on). More cores make it wider, never higher. It never
-shrinks: a core that goes offline keeps an empty bar, and the swap bar stays after
-`swapoff`.
+font, so they line up in the dock (deskControl from two desktops on). More cores make
+it wider, never higher. It never shrinks: a core that goes offline keeps an empty bar,
+and the swap bar stays after `swapoff`.
 
 It draws only mwm's thin border, no title bar, buttons or resize handles. The border
 takes the active colour while osDisplay has the keyboard. The colours are mwc's:

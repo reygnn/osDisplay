@@ -31,6 +31,8 @@ done
 export MWC_TEST_STATE=$SMOKE_DIR/state
 export LC_ALL=C.UTF-8
 unset MWC_INACTIVE MWC_ACTIVE OSD_FONT OSD_INTERVAL DC_FONT SC_FONT CLOCK_FONT PULSE_SERVER
+# The cursor test counts on Adwaita's sizes.
+unset XCURSOR_THEME XCURSOR_PATH XCURSOR_SIZE
 SISTERS_LOG=$OSD_DIR/build/ui-sisters.log
 : >"$OSD_LOG"
 : >"$SISTERS_LOG"
@@ -38,7 +40,8 @@ SHOT=$SMOKE_DIR/ui.png
 ERR_SHOT=$OSD_DIR/build/ui-last.png
 BG=aeb2c3      # Motif's default background: the frame without the keyboard
 SEL=7387ad     # activeBackground: the frame with the keyboard, and the bars
-TRACK=9497a6   # a bar's empty part: the background mixed 15 % towards black
+TRACK=999dac   # a bar's empty part: the background mixed 12 % towards black, as
+               # pulseControl's trough
 LIGHT=dbdce4   # the background mixed 55 % towards white: the bevel's lit side
 DARK=575962    # and halfway to black: its shaded side
 OUT=$((3 + 6))          # frame and padding: where the first field starts
@@ -160,6 +163,12 @@ start_osd() {
 	refresh
 	where
 }
+# Still running when it is stopped: a protocol error would have ended it already.
+stop_osd() {
+	kill -0 "$PID_osd" 2>/dev/null || fail "osDisplay died: $(tail -n 3 "$OSD_LOG")"
+	kill "$PID_osd"
+	wait "$PID_osd" 2>/dev/null
+}
 focus() {
 	do_input move $((X0 + OW / 2)) $((Y0 + OH / 2))
 	do_input click left
@@ -232,7 +241,7 @@ core_is 3 25
 mem_is 0 "memory" 75
 
 # mwm's bevels: the frame raised, the field sunken.
-shoot
+shoot || fail "no screenshot"
 got="$(pixel "$X0" "$Y0") $(pixel $((X0 + OW - 1)) $((Y0 + OH - 1)))"
 got="$got $(pixel $((X0 + OUT)) $((Y0 + OUT)))"
 got="$got $(pixel $((X0 + OUT + $(field_w 4) - 1)) $((Y0 + OH - OUT - 1)))"
@@ -255,10 +264,12 @@ core_is 0 100
 core_is 2 75
 
 # Counters that step back a little, as idle and iowait read in turn can: no new
-# load, the bar stays. As a fresh start core 1 would show 1000 of 1990, half.
-set_stat "1000 1000" "1000 990" "1250 750" "320 980"
+# load, the bar stays. As a fresh start core 1 would show 1000 of 1990, half. Core 2's
+# busy time steps back while its total grows: it stays at 75, neither 0 nor full.
+set_stat "1000 1000" "1000 990" "1240 770" "320 980"
 core_is 3 10
 core_is 1 0
+core_is 2 75
 
 # Core 0 goes offline: an empty bar. Back again, its first value is since boot.
 set_stat - "1000 990" "1250 750" "320 980"
@@ -291,6 +302,25 @@ core_is 7 0
 core_is 4 0
 width_is "four cores again keep the width" 8 2
 check "the height never changes" "[ \"\$(get osDisplay h)\" = $H0 ]"
+stop_osd
+
+# The font sets the height, also without the sisters to compare: a larger one makes it
+# higher, and one without a size is taken at 10 points, not as nothing at all.
+font_h() { # font: the height osDisplay takes with it
+	OSD_FONT=$1 start_osd >/dev/null
+	echo "$OH"
+	stop_osd
+}
+h_sans=$(font_h "Sans 10")
+[ "$h_sans" = "$H0" ] || fail "OSD_FONT=\"Sans 10\" is $h_sans high, the default $H0"
+h_big=$(font_h "Sans 20")
+[ "$h_big" -gt "$H0" ] || fail "OSD_FONT=\"Sans 20\" is $h_big high, not more than $H0"
+h_mono=$(font_h "Monospace")
+h_mono10=$(font_h "Monospace 10")
+[ "$h_mono" = "$h_mono10" ] ||
+	fail "OSD_FONT=Monospace is $h_mono high, \"Monospace 10\" $h_mono10"
+echo "ok: OSD_FONT sets the height: $H0, $h_big at 20 points, $h_mono without a size"
+start_osd
 
 # ---- the frame ---------------------------------------------------------------------------
 
@@ -346,7 +376,7 @@ printf '%s\n' 'Mwm*background: #d0d0d0' 'Mwm*activeBackground: #208020' \
 set_stat "1000 0" "0 1000"
 start_osd
 frame_is "the face from the mwmrc" d0d0d0
-SEL=208020 TRACK=b1b1b1
+SEL=208020 TRACK=b7b7b7
 core_is 0 100
 core_is 1 0
 focus
@@ -354,12 +384,22 @@ frame_is "the active colour from the mwmrc" $SEL
 quits_on q
 MWC_INACTIVE='#c0c0c0' MWC_ACTIVE='rgb:f/0/0' start_osd
 frame_is "the face from MWC_INACTIVE" c0c0c0
-SEL=ff0000 TRACK=a3a3a3
+SEL=ff0000 TRACK=a9a9a9
 core_is 0 100
 core_is 1 0
 quits_on q
-SEL=7387ad TRACK=9497a6
+SEL=7387ad TRACK=999dac
 sed -i '/ackground:/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
+
+# rgb: takes hex digits only, not the sign strtoul would read; a line of the mwmrc
+# longer than a buffer is one line, its rest no setting of its own. Both leave the
+# default colour.
+printf 'Mwm*osdFiller: %0*d%s\n' $((511 - 15)) 0 'Mwm*activeBackground: #ff00ff' \
+	>>"$XDG_CONFIG_HOME/mwc/mwmrc"
+MWC_ACTIVE='rgb:-f/0/0' start_osd
+bar_is "the default colour, neither rgb:-f/0/0 nor a cut line" "$(core_x 0)" 100
+stop_osd
+sed -i '/osdFiller/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
 
 # ---- a scaled output ---------------------------------------------------------------------
 
@@ -378,8 +418,7 @@ done
 [ "$sharp" = $BG ] || { cp "$SHOT" "$ERR_SHOT" 2>/dev/null
 	fail "at scale 2 the face beside the bevel is $sharp, not $BG (screenshot in $ERR_SHOT)"; }
 echo "ok: sharp at scale 2"
-kill "$PID_osd"
-wait "$PID_osd" 2>/dev/null
+stop_osd
 
 # A cursor theme need not have the size asked for, and the cursor surface's scale must
 # divide the image. Adwaita in mwc-dev has 24, 30, 36, 48, 72 and 96: 8 at scale 4
@@ -411,12 +450,19 @@ reload_mwc
 check "a new scale loads the cursor again at once" \
 	"cursor_ok && [ \"\$(global cursor cw)\" != $cw4 ] && [ \"\$(global cursor cscale)\" = 2 ]"
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
-kill "$PID_osd"
-wait "$PID_osd" 2>/dev/null
+stop_osd
 
 VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\(.*\)"/\1/p' "$OSD_DIR/version.h")
 [ "$("$OSD" -v)" = "osDisplay $VERSION" ] || fail "-v: $("$OSD" -v)"
 echo "ok: -v prints the version"
+usage=$("$OSD" -h 2>&1) || fail "-h: status $?"
+[[ $usage == *OSD_PROC* ]] || fail "-h names no OSD_PROC: $usage"
+"$OSD" -x 2>/dev/null && fail "-x is taken"
+echo "ok: -h shows the usage, another argument is refused"
+
+# Nothing to complain about in a whole run.
+[ -s "$OSD_LOG" ] && fail "osDisplay wrote to its log: $(head -n 3 "$OSD_LOG")"
+echo "ok: osDisplay's log is empty"
 
 for p in $PIDS_sisters; do
 	kill "$p" 2>/dev/null

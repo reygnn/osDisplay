@@ -53,3 +53,5 @@ clean:
 	rm -rf osDisplay build
 
 .PHONY: all install uninstall test clean
+# A wayland-scanner run that fails leaves no header that counts as up to date.
+.DELETE_ON_ERROR:

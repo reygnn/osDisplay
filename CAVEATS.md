@@ -7,8 +7,9 @@ Limits of osDisplay that are known and left as they are.
 
 Every core adds 10 pixels. With swap, 64 cores make the window 694 pixels wide and 128
 cores 1334, more than a screen 1280 pixels wide holds beside the other tools. There is
-no second row. Cairo draws at most 32767 pixels wide, so at scale 2 more than about
-1600 cores, at scale 4 about 800, leave the window black.
+no second row. Cairo draws at most 32767 pixels wide, so more than about 3270 cores,
+at scale 2 about 1630 and at scale 4 about 810, leave the window black. Cores from
+number 4096 on get no bar.
 
 deskControl is as high as osDisplay only with two desktops or more; with one it has a
 single row of buttons.
@@ -18,9 +19,10 @@ stays that wide until osDisplay restarts. Cores are placed by their number, so a
 in the numbering is an empty bar.
 
 It draws at the integer scale the compositor asks for with wl_compositor 6. A
-fractional scale is drawn at the next integer and scaled down by the compositor; an
-older compositor never asks, and there the window stays at scale 1 and is blurred. A
-bar moves in steps of one surface pixel, also on a scaled output.
+fractional scale is drawn at the next integer and scaled down by the compositor; with
+wl_compositor 4 or 5 it never asks, and there the window stays at scale 1 and is
+blurred. Below 4 osDisplay does not start. A bar moves in steps of one surface pixel,
+also on a scaled output.
 
 The cursor comes in the theme's sizes only. When the scale doesn't divide that size,
 it gets the largest buffer scale that does and the compositor scales it up.

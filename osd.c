@@ -97,6 +97,7 @@ static struct wl_display *dpy;
 static struct wl_compositor *compositor;
 static struct wl_shm *shm;
 static struct wl_seat *seat;
+static uint32_t seat_global;    /* its registry name, to notice its removal */
 static struct xdg_wm_base *wm_base;
 static struct wl_surface *surface;
 static struct wl_callback *frame;       /* a frame is on its way */
@@ -235,11 +236,14 @@ static int parse_color(const char *s, uint32_t *out)
 		uint32_t rgb = 0;
 		s += 4;
 		for (int i = 0; i < 3; i++) {
+			/* strtoul alone would take a sign, blanks and 0x as well. */
+			int digits = 0;
+			while (isxdigit((unsigned char)s[digits]))
+				digits++;
+			if (digits < 1 || digits > 4 || s[digits] != (i < 2 ? '/' : '\0'))
+				return 0;
 			char *end;
 			unsigned long v = strtoul(s, &end, 16);
-			int digits = end - s;
-			if (digits < 1 || digits > 4 || *end != (i < 2 ? '/' : '\0'))
-				return 0;
 			unsigned long max = (1ul << (4 * digits)) - 1;
 			rgb = rgb << 8 | (v * 255 + max / 2) / max;
 			s = end + 1;
@@ -256,7 +260,7 @@ static int parse_color(const char *s, uint32_t *out)
 /* Last global "Mwm*key: value" line of ~/.config/mwc/mwmrc. */
 static char *mwmrc_get(const char *key, char *val, size_t n)
 {
-	char path[PATH_MAX], line[512];
+	char path[PATH_MAX];
 	const char *home = getenv("HOME"), *xdg = getenv("XDG_CONFIG_HOME");
 	int len;
 	if (xdg && *xdg)
@@ -269,9 +273,9 @@ static char *mwmrc_get(const char *key, char *val, size_t n)
 	FILE *f = fopen(path, "r");
 	if (!f)
 		return NULL;
-	char *found = NULL;
-	size_t kl = strlen(key);
-	while (fgets(line, sizeof line, f)) {
+	char *found = NULL, *line = NULL;      /* whole lines: a cut one's rest is no line */
+	size_t kl = strlen(key), cap = 0;
+	while (getline(&line, &cap, f) > 0) {
 		char *p = line;
 		while (isspace((unsigned char)*p))
 			p++;
@@ -294,6 +298,7 @@ static char *mwmrc_get(const char *key, char *val, size_t n)
 		if ((size_t)snprintf(val, n, "%s", p) < n)
 			found = val;
 	}
+	free(line);
 	fclose(f);
 	return found;
 }
@@ -320,8 +325,9 @@ static void theme_init(void)
 	px_top = mix(bg, 0xffffff, 0.55f);
 	px_bot = mix(bg, 0x000000, 0.5f);
 	px_sel = setting("MWC_ACTIVE", "activeBackground", 0x7387ad);
-	/* The empty part of a bar, so that bars at 0 still show where they are. */
-	px_track = mix(bg, 0x000000, 0.15f);
+	/* The empty part of a bar, so that bars at 0 still show where they are: the
+	 * shade of pulseControl's trough. */
+	px_track = mix(bg, 0x000000, 0.12f);
 
 	const char *f = getenv("OSD_FONT");
 	PangoFontDescription *desc =
@@ -753,6 +759,28 @@ static const struct wl_pointer_listener pointer_listener = {
 	.axis_discrete = ptr_axis_discrete,
 };
 
+/* release exists from wl_seat 3 on; an older seat only knows destroy. */
+static void ptr_drop(void)
+{
+	if (wl_pointer_get_version(pointer) >= WL_POINTER_RELEASE_SINCE_VERSION)
+		wl_pointer_release(pointer);
+	else
+		wl_pointer_destroy(pointer);
+	ptr_on = 0;
+	pointer = NULL;
+}
+
+static void kb_drop(void)
+{
+	if (wl_keyboard_get_version(keyboard) >= WL_KEYBOARD_RELEASE_SINCE_VERSION)
+		wl_keyboard_release(keyboard);
+	else
+		wl_keyboard_destroy(keyboard);
+	keyboard = NULL;
+	focused = 0;    /* in case no leave came first */
+	dirty = 1;
+}
+
 static void seat_capabilities(void *data, struct wl_seat *s, uint32_t caps)
 {
 	int want_ptr = caps & WL_SEAT_CAPABILITY_POINTER;
@@ -761,18 +789,13 @@ static void seat_capabilities(void *data, struct wl_seat *s, uint32_t caps)
 		pointer = wl_seat_get_pointer(s);
 		wl_pointer_add_listener(pointer, &pointer_listener, NULL);
 	} else if (!want_ptr && pointer) {
-		wl_pointer_release(pointer);
-		ptr_on = 0;
-		pointer = NULL;
+		ptr_drop();
 	}
 	if (want_kb && !keyboard) {
 		keyboard = wl_seat_get_keyboard(s);
 		wl_keyboard_add_listener(keyboard, &keyboard_listener, NULL);
 	} else if (!want_kb && keyboard) {
-		wl_keyboard_release(keyboard);
-		keyboard = NULL;
-		focused = 0;    /* in case no leave came first */
-		dirty = 1;
+		kb_drop();
 	}
 }
 
@@ -797,13 +820,15 @@ static const struct xdg_wm_base_listener wm_base_listener = { wm_ping };
 static void registry_global(void *data, struct wl_registry *r, uint32_t name,
 	const char *iface, uint32_t ver)
 {
-	if (!strcmp(iface, wl_compositor_interface.name)) {
+	/* 4 for damage_buffer, 3 for set_buffer_scale; 6 tells the scale. */
+	if (!strcmp(iface, wl_compositor_interface.name) && ver >= 4) {
 		compositor = wl_registry_bind(r, name, &wl_compositor_interface,
 			MIN(ver, 6));
 	} else if (!strcmp(iface, wl_shm_interface.name)) {
 		shm = wl_registry_bind(r, name, &wl_shm_interface, 1);
 	} else if (!strcmp(iface, wl_seat_interface.name) && !seat) {
 		seat = wl_registry_bind(r, name, &wl_seat_interface, MIN(ver, 7));
+		seat_global = name;
 		wl_seat_add_listener(seat, &seat_listener, NULL);
 	} else if (!strcmp(iface, xdg_wm_base_interface.name)) {
 		wm_base = wl_registry_bind(r, name, &xdg_wm_base_interface,
@@ -812,8 +837,20 @@ static void registry_global(void *data, struct wl_registry *r, uint32_t name,
 	}
 }
 
+/* A seat that goes away frees the place for the next one announced. */
 static void registry_remove(void *data, struct wl_registry *r, uint32_t name)
 {
+	if (!seat || name != seat_global)
+		return;
+	if (pointer)
+		ptr_drop();
+	if (keyboard)
+		kb_drop();
+	if (wl_seat_get_version(seat) >= WL_SEAT_RELEASE_SINCE_VERSION)
+		wl_seat_release(seat);
+	else
+		wl_seat_destroy(seat);
+	seat = NULL;
 }
 
 static const struct wl_registry_listener registry_listener = {
@@ -898,7 +935,7 @@ static void cursor_show(void)
 }
 
 /* Sharp on a scaled output: wl_compositor 6 says which scale the output it is on
- * has. An older compositor never does, and it stays at 1. */
+ * has. With 4 or 5 it never does, and it stays at 1. */
 static void surf_enter(void *data, struct wl_surface *s, struct wl_output *o)
 {
 }
@@ -965,7 +1002,7 @@ int main(int argc, char **argv)
 		fprintf(stderr, "usage: osDisplay [-v]\n"
 			"Environment: OSD_INTERVAL (milliseconds, default 1000), "
 			"OSD_FONT (default \"Sans 10\"),\n"
-			"MWC_INACTIVE, MWC_ACTIVE.\n");
+			"MWC_INACTIVE, MWC_ACTIVE, OSD_PROC (default /proc).\n");
 		return help ? 0 : 1;
 	}
 	setlocale(LC_ALL, "");
@@ -1002,7 +1039,7 @@ int main(int argc, char **argv)
 	if (wl_display_roundtrip(dpy) < 0)
 		lost_connection();
 	if (!compositor || !shm || !wm_base) {
-		fprintf(stderr, "osDisplay: the compositor lacks wl_compositor, wl_shm "
+		fprintf(stderr, "osDisplay: the compositor lacks wl_compositor 4, wl_shm "
 			"or xdg_wm_base\n");
 		return 1;
 	}
