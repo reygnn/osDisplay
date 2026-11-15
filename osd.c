@@ -950,8 +950,10 @@ static void cursor_show(void)
 	int d = cursor_buf_scale;
 	int hx = cursor_img->hotspot_x / d, hy = cursor_img->hotspot_y / d;
 	if (cursor_vw > 0) {
-		hx = cursor_img->hotspot_x * cursor_vw / cursor_img->width;
-		hy = cursor_img->hotspot_y * cursor_vh / cursor_img->height;
+		/* Rounded as the viewport's size is. */
+		int w = cursor_img->width, h = cursor_img->height;
+		hx = (cursor_img->hotspot_x * cursor_vw + w / 2) / w;
+		hy = (cursor_img->hotspot_y * cursor_vh + h / 2) / h;
 	}
 	wl_pointer_set_cursor(pointer, ptr_serial, cursor_surf, hx, hy);
 	if (cursor_vp)
