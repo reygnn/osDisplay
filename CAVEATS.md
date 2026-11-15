@@ -22,6 +22,9 @@ fractional scale is drawn at the next integer and scaled down by the compositor;
 older compositor never asks, and there the window stays at scale 1 and is blurred. A
 bar moves in steps of one surface pixel, also on a scaled output.
 
+The cursor comes in the theme's sizes only. When the scale doesn't divide that size,
+it gets the largest buffer scale that does and the compositor scales it up.
+
 
 ## Numbers
 

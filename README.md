@@ -96,10 +96,10 @@ runs osDisplay in the dock of a headless mwc beside deskControl, pulseControl an
 digitalClock, with a `/proc` of the test's own, and checks in screenshots the height
 against all three, the bars of cores, memory and swap, cores going offline, the
 interval, that the window grows and never shrinks, the bevels, its border and focus,
-the colours, HiDPI and the keys. It needs a built mwc with `build/vinput`,
-`build/pngtool` and `build/xdgc` in `MWC_DIR` (by default `../mwc`), grim, and the
-sisters built in `../deskControl`, `../pulseControl` and `../mClock`, or named in
-`DESK`, `PULSE` and `CLOCK`; without them set `SKIP_SISTERS=1`. mwc's development
-box has all of it:
+the colours, HiDPI, the cursor at a scale its size needs and the keys. It needs a
+built mwc with `build/vinput`, `build/pngtool` and `build/xdgc` in `MWC_DIR` (by
+default `../mwc`), grim, and the sisters built in `../deskControl`, `../pulseControl`
+and `../mClock`, or named in `DESK`, `PULSE` and `CLOCK`; without them set
+`SKIP_SISTERS=1`. mwc's development box has all of it:
 
     distrobox enter mwc-dev -- make test

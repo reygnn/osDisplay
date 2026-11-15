@@ -381,6 +381,39 @@ echo "ok: sharp at scale 2"
 kill "$PID_osd"
 wait "$PID_osd" 2>/dev/null
 
+# A cursor theme need not have the size asked for, and the cursor surface's scale must
+# divide the image. Adwaita in mwc-dev has 24, 30, 36, 48, 72 and 96: 8 at scale 4
+# asks for 32 and gets 30, which 4 doesn't divide. vinput counts in the 1280x720 it
+# was started with, four times the scaled layout. The dock goes to the top left, where
+# osDisplay stays under the pointer when the scale changes.
+cursor_ok() { # the cursor is shown, and its scale divides its size
+	local w h f
+	w=$(global cursor cw) h=$(global cursor ch) f=$(global cursor cscale)
+	[ "${w:-0}" -gt 0 ] && [ "${f:-0}" -gt 0 ] && [ $((w % f)) = 0 ] && [ $((h % f)) = 0 ]
+}
+sed -i '/outputScale\|dockPlacement/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
+printf '%s\n' 'Mwm*HEADLESS-1*outputScale: 4' 'Mwm*dockPlacement: left top' \
+	>>"$XDG_CONFIG_HOME/mwc/mwmrc"
+reload_mwc
+check "the output is scaled by 4" "[ \"\$(global output_HEADLESS-1 scale)\" = 400 ]"
+do_input move 0 0
+XCURSOR_SIZE=8 start_osd
+do_input move $((4 * (X0 + OW / 2))) $((4 * (Y0 + OH / 2)))
+# 30 wide: loaded for scale 4, not for one the window had before.
+check "a cursor of 30 at scale 4 is set at a scale that divides it" \
+	"cursor_ok && [ \"\$(global cursor cw)\" = 30 ] && [ \"\$(global cursor cscale)\" -gt 1 ]"
+cw4=$(global cursor cw)
+echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
+# Back to 2 with the pointer kept on the window: the cursor follows without an enter.
+sed -i '/outputScale/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
+echo 'Mwm*HEADLESS-1*outputScale: 2' >>"$XDG_CONFIG_HOME/mwc/mwmrc"
+reload_mwc
+check "a new scale loads the cursor again at once" \
+	"cursor_ok && [ \"\$(global cursor cw)\" != $cw4 ] && [ \"\$(global cursor cscale)\" = 2 ]"
+echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
+kill "$PID_osd"
+wait "$PID_osd" 2>/dev/null
+
 VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\(.*\)"/\1/p' "$OSD_DIR/version.h")
 [ "$("$OSD" -v)" = "osDisplay $VERSION" ] || fail "-v: $("$OSD" -v)"
 echo "ok: -v prints the version"
