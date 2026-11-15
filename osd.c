@@ -1050,7 +1050,8 @@ int main(int argc, char **argv)
 			return 0;
 		}
 		int help = argc == 2 && !strcmp(argv[1], "-h");
-		fprintf(stderr, "usage: osDisplay [-v]\n"
+		/* Asked for, it goes to stdout as mwc's; refused, to stderr. */
+		fprintf(help ? stdout : stderr, "usage: osDisplay [-v]\n"
 			"Environment: OSD_INTERVAL (milliseconds, default 1000), "
 			"OSD_FONT (default \"Sans 10\"),\n"
 			"MWC_INACTIVE, MWC_ACTIVE, OSD_PROC (default /proc).\n");
