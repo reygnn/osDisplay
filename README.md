@@ -84,8 +84,8 @@ With Alt, Super or Ctrl held no key acts, except Ctrl+Q and Ctrl+W.
 ## How this is built
 
 osDisplay is developed with Claude (Anthropic) as a coding assistant. I set the scope
-and review the changes; Claude writes most of the code and the tests. What is open is
-written down in CAVEATS.
+and the design and review the changes; Claude writes most of the code and the tests.
+What is open is written down in CAVEATS.
 
 
 ## Testing
