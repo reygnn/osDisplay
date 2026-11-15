@@ -392,14 +392,17 @@ SEL=7387ad TRACK=999dac
 sed -i '/ackground:/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
 
 # rgb: takes hex digits only, not the sign strtoul would read; a line of the mwmrc
-# longer than a buffer is one line, its rest no setting of its own. Both leave the
-# default colour.
+# longer than a buffer is one line, its rest no setting of its own; and the last line
+# wins even when its value is too long to keep, as in mwc: then there is none. All
+# leave the default colour.
+printf 'Mwm*activeBackground: %s\n' '#ff0000' "#$(printf '0%.0s' {1..300})" \
+	>>"$XDG_CONFIG_HOME/mwc/mwmrc"
 printf 'Mwm*osdFiller: %0*d%s\n' $((511 - 15)) 0 'Mwm*activeBackground: #ff00ff' \
 	>>"$XDG_CONFIG_HOME/mwc/mwmrc"
 MWC_ACTIVE='rgb:-f/0/0' start_osd
 bar_is "the default colour, neither rgb:-f/0/0 nor a cut line" "$(core_x 0)" 100
 stop_osd
-sed -i '/osdFiller/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
+sed -i '/osdFiller\|ackground:/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
 
 # ---- a scaled output ---------------------------------------------------------------------
 
@@ -462,6 +465,19 @@ check "a new scale loads the cursor again at once" \
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
 check "there the scale divides it, and the viewport is unset" \
 	"[ \"\$(cursor_dest)\" = '-1 -1' ]"
+# The old theme's buffers go with it: the cursor surface lets go of them first.
+csurf=$(grep -o 'set_cursor([0-9]*, wl_surface#[0-9]*' "$WL_LOG" | tail -1 | sed 's/.*#//')
+grep -q "wl_surface#$csurf\.attach(nil" "$WL_LOG" ||
+	fail "the cursor surface wl_surface#$csurf keeps the old theme's buffer"
+echo "ok: the old theme's buffer is taken off the cursor surface"
+stop_osd
+
+# A size far too large is bounded, not multiplied past what an int holds: the
+# theme's largest, 96 at scale 2.
+XCURSOR_SIZE=2000000000 start_osd
+do_input move $((2 * (X0 + OW / 2) + 2)) $((2 * (Y0 + OH / 2)))
+check "XCURSOR_SIZE=2000000000 gives the largest cursor" \
+	"cursor_ok && [ \"\$(global cursor cw)\" = 96 ]"
 stop_osd
 
 VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\(.*\)"/\1/p' "$OSD_DIR/version.h")

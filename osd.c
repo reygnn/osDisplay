@@ -300,8 +300,12 @@ static char *mwmrc_get(const char *key, char *val, size_t n)
 		char *e = p + strlen(p);
 		while (e > p && isspace((unsigned char)e[-1]))
 			*--e = 0;
-		if ((size_t)snprintf(val, n, "%s", p) < n)
+		/* The last line wins, also when its value is too long: then none. */
+		found = NULL;
+		if ((size_t)(e - p) < n) {
+			memcpy(val, p, e - p + 1);
 			found = val;
+		}
 	}
 	free(line);
 	fclose(f);
@@ -647,7 +651,7 @@ static void kb_keymap(void *data, struct wl_keyboard *k, uint32_t format,
 	if (s == MAP_FAILED)
 		return;
 	/* By its size: the protocol does not promise a NUL at the end. */
-	struct xkb_keymap *map = xkb_keymap_new_from_buffer(xkb, s, size,
+	struct xkb_keymap *map = xkb_keymap_new_from_buffer(xkb, s, strnlen(s, size),
 		XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
 	munmap(s, size);
 	struct xkb_state *state = map ? xkb_state_new(map) : NULL;
@@ -900,12 +904,23 @@ static void cursor_load(void)
 {
 	if (cursor_scale == scale)
 		return;
-	if (cursor_theme)
+	if (cursor_theme) {
+		/* Its buffers go with it: none may stay on the cursor surface. */
+		if (cursor_surf) {
+			wl_surface_attach(cursor_surf, NULL, 0, 0);
+			wl_surface_commit(cursor_surf);
+		}
 		wl_cursor_theme_destroy(cursor_theme);
+	}
 	cursor_theme = NULL;
 	cursor_img = NULL;
+	/* Bounded, so that size * scale cannot overflow. */
 	const char *s = getenv("XCURSOR_SIZE");
-	int size = s && atoi(s) > 0 ? atoi(s) : 24;
+	char *end = NULL;
+	long size = s && *s ? strtol(s, &end, 10) : 0;
+	if (!end || *end || size < 1)
+		size = 24;
+	size = MIN(size, 256);
 	cursor_theme = wl_cursor_theme_load(getenv("XCURSOR_THEME"), size * scale, shm);
 	if (!cursor_theme)
 		return; /* tried again on the next enter */
