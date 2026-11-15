@@ -1043,8 +1043,7 @@ int main(int argc, char **argv)
 			printf("osDisplay %s\n", OSDISPLAY_VERSION);
 			return 0;
 		}
-		int help = argc == 2 && (!strcmp(argv[1], "-h") ||
-			!strcmp(argv[1], "--help"));
+		int help = argc == 2 && !strcmp(argv[1], "-h");
 		fprintf(stderr, "usage: osDisplay [-v]\n"
 			"Environment: OSD_INTERVAL (milliseconds, default 1000), "
 			"OSD_FONT (default \"Sans 10\"),\n"

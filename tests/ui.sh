@@ -488,6 +488,7 @@ usage=$("$OSD" -h 2>&1) || fail "-h: status $?"
 [[ $usage == *OSD_PROC* ]] || fail "-h names no OSD_PROC: $usage"
 "$OSD" -x 2>/dev/null && fail "-x is taken"
 "$OSD" -h x 2>/dev/null && fail "-h with another argument is taken"
+"$OSD" --help 2>/dev/null && fail "--help is taken"
 echo "ok: -h shows the usage, another argument is refused"
 
 # Nothing to complain about in a whole run.
