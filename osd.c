@@ -334,8 +334,8 @@ static void theme_init(void)
 	px_top = mix(bg, 0xffffff, 0.55f);
 	px_bot = mix(bg, 0x000000, 0.5f);
 	px_sel = setting("MWC_ACTIVE", "activeBackground", 0x7387ad);
-	/* The empty part of a bar, so that bars at 0 still show where they are: the
-	 * shade of pulseControl's trough. */
+	/* The empty part of a bar, so that bars at 0 still show where they are. Not
+	 * mwc's trough at 0.25: that is as bright as the default bar. */
 	px_track = mix(bg, 0x000000, 0.12f);
 
 	const char *f = getenv("OSD_FONT");

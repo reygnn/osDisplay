@@ -40,8 +40,8 @@ SHOT=$SMOKE_DIR/ui.png
 ERR_SHOT=$OSD_DIR/build/ui-last.png
 BG=aeb2c3      # Motif's default background: the frame without the keyboard
 SEL=7387ad     # activeBackground: the frame with the keyboard, and the bars
-TRACK=999dac   # a bar's empty part: the background mixed 12 % towards black, as
-               # pulseControl's trough
+TRACK=999dac   # a bar's empty part: the background mixed 12 % towards black, not
+               # 25 % as mwc's trough, which is as bright as the bar
 LIGHT=dbdce4   # the background mixed 55 % towards white: the bevel's lit side
 DARK=575962    # and halfway to black: its shaded side
 OUT=$((3 + 6))          # frame and padding: where the first field starts
