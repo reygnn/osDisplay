@@ -1,0 +1,6 @@
+#ifndef OSDISPLAY_VERSION_H
+#define OSDISPLAY_VERSION_H
+
+#define OSDISPLAY_VERSION "0.1.0"
+
+#endif

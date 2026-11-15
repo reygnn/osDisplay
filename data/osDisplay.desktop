@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=osDisplay
+Comment=CPU load per core and memory use, in the Motif look
+Exec=osDisplay
+Icon=utilities-system-monitor
+Terminal=false
+Categories=Utility;System;Monitor;
