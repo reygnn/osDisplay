@@ -7,9 +7,10 @@ PKGS = wayland-client wayland-cursor xkbcommon cairo pangocairo
 WAYLAND_PROTOCOLS := $(shell $(PKG_CONFIG) --variable=pkgdatadir wayland-protocols)
 WAYLAND_SCANNER := $(shell $(PKG_CONFIG) --variable=wayland_scanner wayland-scanner)
 XDG_SHELL = $(WAYLAND_PROTOCOLS)/stable/xdg-shell/xdg-shell.xml
+VIEWPORTER = $(WAYLAND_PROTOCOLS)/stable/viewporter/viewporter.xml
 
-PROTO_H = build/xdg-shell-client-protocol.h
-PROTO_C = build/xdg-shell-protocol.c
+PROTO_H = build/xdg-shell-client-protocol.h build/viewporter-client-protocol.h
+PROTO_C = build/xdg-shell-protocol.c build/viewporter-protocol.c
 
 # CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS stay the user's, also on the command line:
 # `make CFLAGS=-O0` must not lose the include paths.
@@ -32,6 +33,12 @@ build/xdg-shell-client-protocol.h: $(XDG_SHELL) | build
 
 build/xdg-shell-protocol.c: $(XDG_SHELL) | build
 	$(WAYLAND_SCANNER) private-code $(XDG_SHELL) $@
+
+build/viewporter-client-protocol.h: $(VIEWPORTER) | build
+	$(WAYLAND_SCANNER) client-header $(VIEWPORTER) $@
+
+build/viewporter-protocol.c: $(VIEWPORTER) | build
+	$(WAYLAND_SCANNER) private-code $(VIEWPORTER) $@
 
 install: osDisplay
 	install -Dm755 osDisplay $(DESTDIR)$(PREFIX)/bin/osDisplay

@@ -45,6 +45,7 @@
 #include <xkbcommon/xkbcommon-keysyms.h>
 
 #include "version.h"
+#include "viewporter-client-protocol.h"
 #include "xdg-shell-client-protocol.h"
 
 #define BEV 2           /* bevel width, as in mwm */
@@ -113,6 +114,9 @@ static struct wl_surface *cursor_surf;
 static struct wl_cursor_theme *cursor_theme;
 static struct wl_cursor_image *cursor_img;
 static int cursor_scale;         /* the scale the theme was loaded for */
+static struct wp_viewporter *viewporter;
+static struct wp_viewport *cursor_vp;
+static int cursor_vw, cursor_vh; /* its size on the window, if the viewport sets it */
 static int cursor_buf_scale;     /* its buffers' scale: one that divides their size */
 static uint32_t ptr_serial;      /* of the last enter, for set_cursor */
 static int ptr_on;               /* the pointer is over the window */
@@ -265,9 +269,10 @@ static char *mwmrc_get(const char *key, char *val, size_t n)
 	int len;
 	if (xdg && *xdg)
 		len = snprintf(path, sizeof path, "%s/mwc/mwmrc", xdg);
+	else if (home && *home)
+		len = snprintf(path, sizeof path, "%s/.config/mwc/mwmrc", home);
 	else
-		len = snprintf(path, sizeof path, "%s/.config/mwc/mwmrc",
-			home ? home : "");
+		return NULL;    /* as mwc: no /.config/mwc/mwmrc */
 	if (len < 0 || (size_t)len >= sizeof path)
 		return NULL;
 	FILE *f = fopen(path, "r");
@@ -641,7 +646,8 @@ static void kb_keymap(void *data, struct wl_keyboard *k, uint32_t format,
 	close(fd);
 	if (s == MAP_FAILED)
 		return;
-	struct xkb_keymap *map = xkb_keymap_new_from_string(xkb, s,
+	/* By its size: the protocol does not promise a NUL at the end. */
+	struct xkb_keymap *map = xkb_keymap_new_from_buffer(xkb, s, size,
 		XKB_KEYMAP_FORMAT_TEXT_V1, XKB_KEYMAP_COMPILE_NO_FLAGS);
 	munmap(s, size);
 	struct xkb_state *state = map ? xkb_state_new(map) : NULL;
@@ -830,6 +836,8 @@ static void registry_global(void *data, struct wl_registry *r, uint32_t name,
 		seat = wl_registry_bind(r, name, &wl_seat_interface, MIN(ver, 7));
 		seat_global = name;
 		wl_seat_add_listener(seat, &seat_listener, NULL);
+	} else if (!strcmp(iface, wp_viewporter_interface.name) && !viewporter) {
+		viewporter = wl_registry_bind(r, name, &wp_viewporter_interface, 1);
 	} else if (!strcmp(iface, xdg_wm_base_interface.name)) {
 		wm_base = wl_registry_bind(r, name, &xdg_wm_base_interface,
 			MIN(ver, 2));
@@ -896,28 +904,42 @@ static void cursor_load(void)
 		wl_cursor_theme_destroy(cursor_theme);
 	cursor_theme = NULL;
 	cursor_img = NULL;
-	cursor_scale = scale;
 	const char *s = getenv("XCURSOR_SIZE");
 	int size = s && atoi(s) > 0 ? atoi(s) : 24;
 	cursor_theme = wl_cursor_theme_load(getenv("XCURSOR_THEME"), size * scale, shm);
 	if (!cursor_theme)
-		return;
+		return; /* tried again on the next enter */
 	struct wl_cursor *c = wl_cursor_theme_get_cursor(cursor_theme, "default");
 	if (!c)
 		c = wl_cursor_theme_get_cursor(cursor_theme, "left_ptr");
-	if (c)
-		cursor_img = c->images[0];
+	if (!c)
+		return;
+	cursor_img = c->images[0];
+	cursor_scale = scale;
 	if (!cursor_surf)
 		cursor_surf = wl_compositor_create_surface(compositor);
-	/* A theme has only some sizes: Adwaita gives 64x64 for 72. A buffer scale
-	 * that doesn't divide the size is a protocol error, so take the largest one
-	 * up to the window's that does; the compositor scales the rest. */
+	if (viewporter && !cursor_vp)
+		cursor_vp = wp_viewporter_get_viewport(viewporter, cursor_surf);
+	/* A theme has only some sizes: Adwaita gives 30 for 8 at scale 4. A buffer
+	 * scale that doesn't divide the size is a protocol error. With a viewport the
+	 * buffer is shown at its size over the scale, as mwc shows its own cursor;
+	 * without, at the largest scale up to the window's that divides it, and the
+	 * cursor is that much larger. */
+	int w = cursor_img->width, h = cursor_img->height;
 	cursor_buf_scale = 1;
-	for (int d = scale; cursor_img && d > 1; d--)
-		if (cursor_img->width % d == 0 && cursor_img->height % d == 0) {
-			cursor_buf_scale = d;
-			break;
-		}
+	cursor_vw = cursor_vh = -1;
+	if (w % scale == 0 && h % scale == 0) {
+		cursor_buf_scale = scale;
+	} else if (cursor_vp) {
+		cursor_vw = MAX((w + scale / 2) / scale, 1);
+		cursor_vh = MAX((h + scale / 2) / scale, 1);
+	} else {
+		for (int d = scale - 1; d > 1; d--)
+			if (w % d == 0 && h % d == 0) {
+				cursor_buf_scale = d;
+				break;
+			}
+	}
 }
 
 /* The cursor on the window, while the pointer is over it. */
@@ -926,8 +948,14 @@ static void cursor_show(void)
 	if (!pointer || !ptr_on || !cursor_img)
 		return;
 	int d = cursor_buf_scale;
-	wl_pointer_set_cursor(pointer, ptr_serial, cursor_surf, cursor_img->hotspot_x / d,
-		cursor_img->hotspot_y / d);
+	int hx = cursor_img->hotspot_x / d, hy = cursor_img->hotspot_y / d;
+	if (cursor_vw > 0) {
+		hx = cursor_img->hotspot_x * cursor_vw / cursor_img->width;
+		hy = cursor_img->hotspot_y * cursor_vh / cursor_img->height;
+	}
+	wl_pointer_set_cursor(pointer, ptr_serial, cursor_surf, hx, hy);
+	if (cursor_vp)
+		wp_viewport_set_destination(cursor_vp, cursor_vw, cursor_vh);
 	wl_surface_set_buffer_scale(cursor_surf, d);
 	wl_surface_attach(cursor_surf, wl_cursor_image_get_buffer(cursor_img), 0, 0);
 	wl_surface_damage_buffer(cursor_surf, 0, 0, cursor_img->width, cursor_img->height);
@@ -994,11 +1022,12 @@ static void lost_connection(void)
 int main(int argc, char **argv)
 {
 	if (argc > 1) {
-		if (!strcmp(argv[1], "-v")) {
+		if (argc == 2 && !strcmp(argv[1], "-v")) {
 			printf("osDisplay %s\n", OSDISPLAY_VERSION);
 			return 0;
 		}
-		int help = !strcmp(argv[1], "-h") || !strcmp(argv[1], "--help");
+		int help = argc == 2 && (!strcmp(argv[1], "-h") ||
+			!strcmp(argv[1], "--help"));
 		fprintf(stderr, "usage: osDisplay [-v]\n"
 			"Environment: OSD_INTERVAL (milliseconds, default 1000), "
 			"OSD_FONT (default \"Sans 10\"),\n"

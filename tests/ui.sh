@@ -156,7 +156,7 @@ frame_is() { # description rrggbb
 	fail "$1: the frame is $got, expected $2 (screenshot in $ERR_SHOT)"
 }
 start_osd() {
-	WAYLAND_DISPLAY=wayland-0 "$OSD" >>"$OSD_LOG" 2>&1 &
+	WAYLAND_DISPLAY=wayland-0 "$OSD" >>"${OSD_OUT:-$OSD_LOG}" 2>&1 &
 	PID_osd=$!
 	check "osDisplay is mapped" "[ -n \"\$(get osDisplay x)\" ]"
 	NCORES=$(awk '/^cpu[0-9]/ { n = substr($1, 4) + 1 } END { print n }' "$PROC/stat")
@@ -422,9 +422,18 @@ stop_osd
 
 # A cursor theme need not have the size asked for, and the cursor surface's scale must
 # divide the image. Adwaita in mwc-dev has 24, 30, 36, 48, 72 and 96: 8 at scale 4
-# asks for 32 and gets 30, which 4 doesn't divide. vinput counts in the 1280x720 it
+# asks for 32 and gets 30, which 4 doesn't divide. The buffer then goes at scale 1 and
+# a viewport shows it at 30 / 4, about 8, as large as mwc shows its own cursor; the
+# viewport is read from osDisplay's protocol log. vinput counts in the 1280x720 it
 # was started with, four times the scaled layout. The dock goes to the top left, where
 # osDisplay stays under the pointer when the scale changes.
+WL_LOG=$OSD_DIR/build/ui-wayland.log
+: >"$WL_LOG"
+# The last size the cursor's viewport was given, "w h"; -1 -1 is none.
+cursor_dest() {
+	grep -o 'wp_viewport#[0-9]*\.set_destination(-\?[0-9]*, -\?[0-9]*)' "$WL_LOG" |
+		tail -1 | sed 's/.*(\(.*\), \(.*\))/\1 \2/'
+}
 cursor_ok() { # the cursor is shown, and its scale divides its size
 	local w h f
 	w=$(global cursor cw) h=$(global cursor ch) f=$(global cursor cscale)
@@ -436,11 +445,12 @@ printf '%s\n' 'Mwm*HEADLESS-1*outputScale: 4' 'Mwm*dockPlacement: left top' \
 reload_mwc
 check "the output is scaled by 4" "[ \"\$(global output_HEADLESS-1 scale)\" = 400 ]"
 do_input move 0 0
-XCURSOR_SIZE=8 start_osd
+XCURSOR_SIZE=8 WAYLAND_DEBUG=1 OSD_OUT=$WL_LOG start_osd
 do_input move $((4 * (X0 + OW / 2))) $((4 * (Y0 + OH / 2)))
 # 30 wide: loaded for scale 4, not for one the window had before.
-check "a cursor of 30 at scale 4 is set at a scale that divides it" \
-	"cursor_ok && [ \"\$(global cursor cw)\" = 30 ] && [ \"\$(global cursor cscale)\" -gt 1 ]"
+check "a cursor of 30 at scale 4 goes at buffer scale 1" \
+	"cursor_ok && [ \"\$(global cursor cw)\" = 30 ] && [ \"\$(global cursor cscale)\" = 1 ]"
+check "and the viewport shows it at 8, not 30 or 10" "[ \"\$(cursor_dest)\" = '8 8' ]"
 cw4=$(global cursor cw)
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
 # Back to 2 with the pointer kept on the window: the cursor follows without an enter.
@@ -450,14 +460,18 @@ reload_mwc
 check "a new scale loads the cursor again at once" \
 	"cursor_ok && [ \"\$(global cursor cw)\" != $cw4 ] && [ \"\$(global cursor cscale)\" = 2 ]"
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
+check "there the scale divides it, and the viewport is unset" \
+	"[ \"\$(cursor_dest)\" = '-1 -1' ]"
 stop_osd
 
 VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\(.*\)"/\1/p' "$OSD_DIR/version.h")
 [ "$("$OSD" -v)" = "osDisplay $VERSION" ] || fail "-v: $("$OSD" -v)"
+"$OSD" -v x >/dev/null 2>&1 && fail "-v with another argument is taken"
 echo "ok: -v prints the version"
 usage=$("$OSD" -h 2>&1) || fail "-h: status $?"
 [[ $usage == *OSD_PROC* ]] || fail "-h names no OSD_PROC: $usage"
 "$OSD" -x 2>/dev/null && fail "-x is taken"
+"$OSD" -h x 2>/dev/null && fail "-h with another argument is taken"
 echo "ok: -h shows the usage, another argument is refused"
 
 # Nothing to complain about in a whole run.
