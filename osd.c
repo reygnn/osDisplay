@@ -16,7 +16,7 @@
  * colour while it has the keyboard, as mwc's frames do.
  *
  * A timerfd wakes it every OSD_INTERVAL milliseconds to read /proc/stat and
- * /proc/meminfo; it redraws only when a bar changes by a pixel.
+ * /proc/meminfo; a sample is drawn only when a bar changes by a pixel.
  *
  * Keys:   Esc / q / Ctrl+Q / Ctrl+W  quit
  *
@@ -405,12 +405,11 @@ static void read_stat(void)
 			dirty = 1;
 		}
 		struct core *c = &cores[n];
-		/* Equal: nothing new to say, the bar stays. Smaller: the counters
-		 * started again, the core was away. */
+		/* Otherwise the bar stays. Linux never resets these counters, but idle
+		 * and iowait are read one after the other and can step back a little
+		 * when a task leaves iowait in between: that is no new load. */
 		if (total > c->total && busy >= c->busy)
 			set_h(&c->h, bar(busy - c->busy, total - c->total));
-		else if (total < c->total || busy < c->busy)
-			set_h(&c->h, bar(busy, total));
 		c->busy = busy;
 		c->total = total;
 		c->seen = 1;

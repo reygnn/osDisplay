@@ -50,7 +50,7 @@ boot. Memory in use is what `MemAvailable` in `/proc/meminfo` does not count, so
 cache the kernel can drop counts as free.
 
 The window is as high as deskControl, pulseControl and digitalClock with the same
-font, so they line up in the dock. More cores make it wider, never higher. It never
+font, so they line up in the dock (deskControl from two desktops on). More cores make it wider, never higher. It never
 shrinks: a core that goes offline keeps an empty bar, and the swap bar stays after
 `swapoff`.
 
@@ -59,7 +59,7 @@ takes the active colour while osDisplay has the keyboard. The colours are mwc's:
 `MWC_INACTIVE` and `MWC_ACTIVE` from the environment, else `Mwm*background` and
 `Mwm*activeBackground` from the mwmrc, else the Motif defaults.
 
-It redraws only when a bar changes by a pixel.
+A new sample is drawn only when a bar changes by a pixel.
 
 
 ## Keys
@@ -92,12 +92,14 @@ written down in CAVEATS.
 
     make test
 
-runs osDisplay in the dock of a headless mwc beside deskControl and digitalClock, with
-a `/proc` of the test's own, and checks in screenshots the height against both, the
-bars of cores, memory and swap, that the window grows and never shrinks, its border
-and focus, the colours, HiDPI and the keys. It needs a built mwc with `build/vinput`,
+runs osDisplay in the dock of a headless mwc beside deskControl, pulseControl and
+digitalClock, with a `/proc` of the test's own, and checks in screenshots the height
+against all three, the bars of cores, memory and swap, cores going offline, the
+interval, that the window grows and never shrinks, the bevels, its border and focus,
+the colours, HiDPI and the keys. It needs a built mwc with `build/vinput`,
 `build/pngtool` and `build/xdgc` in `MWC_DIR` (by default `../mwc`), grim, and the
-sisters built next to this directory; without them set `SKIP_SISTERS=1`. mwc's
-development box has all of it:
+sisters built in `../deskControl`, `../pulseControl` and `../mClock`, or named in
+`DESK`, `PULSE` and `CLOCK`; without them set `SKIP_SISTERS=1`. mwc's development
+box has all of it:
 
     distrobox enter mwc-dev -- make test

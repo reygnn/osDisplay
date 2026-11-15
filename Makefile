@@ -45,7 +45,7 @@ uninstall:
 		$(DESTDIR)$(PREFIX)/share/applications/osDisplay.desktop
 
 # Needs a built mwc next to this directory, or in MWC_DIR, plus grim. Compares the
-# height with deskControl and digitalClock if they are built next to it.
+# height with deskControl, pulseControl and digitalClock if they are built.
 test: osDisplay
 	tests/ui.sh
 
