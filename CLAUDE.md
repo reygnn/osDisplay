@@ -11,7 +11,8 @@ Test inside mwc's `mwc-dev` distrobox; the host lacks grim.
 
 | Target | |
 |---|---|
-| `make` | osDisplay, one C file (`osd.c`) |
+| `make` | osDisplay: `osd.c` and the module `util.c` |
+| `make check` | `tests/test_util.c`: the module under ASan and UBSan, no compositor |
 | `make test` | `tests/ui.sh`: osDisplay in a headless mwc's dock with a fake `/proc` (`OSD_PROC`), checked in screenshots; log in `build/ui.log`, osDisplay's own in `build/ui-osDisplay.log`, a failing screenshot in `build/ui-last.png` |
 
 `make test` needs a built mwc with `build/vinput`, `build/pngtool` and `build/xdgc`

@@ -91,6 +91,11 @@ What is open is written down in CAVEATS.
 
 ## Testing
 
+    make check
+
+runs the unit tests of the part without Wayland under ASan and UBSan: the buffer
+scale and the list of seats (`util.c`). It needs no compositor.
+
     make test
 
 runs osDisplay in the dock of a headless mwc beside deskControl, pulseControl and

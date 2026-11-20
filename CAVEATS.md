@@ -25,12 +25,19 @@ never maximizes a docked window or one of fixed size.
 It draws at the integer scale the compositor asks for with wl_compositor 6. A
 fractional scale is drawn at the next integer and scaled down by the compositor; with
 wl_compositor 4 or 5 it never asks, and there the window stays at scale 1 and is
-blurred. Below 4 osDisplay does not start. A bar moves in steps of one surface pixel,
-also on a scaled output.
+blurred. Below 4 osDisplay does not start. A scale above 16 is drawn at 16. A bar
+moves in steps of one surface pixel, also on a scaled output.
 
 The cursor comes in the theme's sizes only. When the scale doesn't divide that size,
 a viewport shows it at its size over the scale. Without wp_viewporter it gets the
 largest buffer scale that does divide it and is that much larger than elsewhere.
+
+
+## Input
+
+It keeps the first eight seats the compositor announces and takes the oldest one left
+when its seat goes. One beyond eight is taken only if it is announced again after the
+others went.
 
 
 ## Numbers

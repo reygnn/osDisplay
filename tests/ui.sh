@@ -531,6 +531,11 @@ usage=$("$OSD" -h 2>/dev/null) || fail "-h: status $?"
 "$OSD" -h x 2>/dev/null && fail "-h with another argument is taken"
 "$OSD" --help 2>/dev/null && fail "--help is taken"
 echo "ok: -h shows the usage, another argument is refused"
+for a in -v -h; do
+	"$OSD" $a >/dev/full 2>/dev/null && fail "$a: exit 0 on a full disk"
+	"$OSD" $a >&- 2>/dev/null && fail "$a: exit 0 without stdout"
+	echo "ok: $a fails when stdout does"
+done
 
 # Nothing to complain about in a whole run.
 [ -s "$OSD_LOG" ] && fail "osDisplay wrote to its log: $(head -n 3 "$OSD_LOG")"

@@ -19,11 +19,25 @@ OSD_CFLAGS = -std=c11 -Wall -Wextra -Wno-unused-parameter -Ibuild \
 	$(shell $(PKG_CONFIG) --cflags $(PKGS))
 OSD_LIBS = $(shell $(PKG_CONFIG) --libs $(PKGS)) -lm
 
+MODS = util.c
+MODS_H = util.h
+
 all: osDisplay
 
-osDisplay: osd.c version.h $(PROTO_H) $(PROTO_C)
-	$(CC) $(OSD_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ osd.c $(PROTO_C) \
-		$(OSD_LIBS) $(LDLIBS)
+osDisplay: osd.c $(MODS) $(MODS_H) version.h $(PROTO_H) $(PROTO_C)
+	$(CC) $(OSD_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ osd.c $(MODS) \
+		$(PROTO_C) $(OSD_LIBS) $(LDLIBS)
+
+# The modules without Wayland, each under ASan and UBSan.
+UNIT_CFLAGS = -std=c11 -Wall -Wextra -g -O1 -fsanitize=address,undefined \
+	-fno-sanitize-recover=all
+UNITS = build/test_util
+
+build/test_util: tests/test_util.c util.c util.h | build
+	$(CC) $(UNIT_CFLAGS) -I. -o $@ tests/test_util.c util.c
+
+check: $(UNITS)
+	@for t in $(UNITS); do echo "$$t"; ./$$t || exit 1; done
 
 build:
 	mkdir -p build
@@ -59,6 +73,6 @@ test: osDisplay
 clean:
 	rm -rf osDisplay build
 
-.PHONY: all install uninstall test clean
+.PHONY: all install uninstall check test clean
 # A wayland-scanner run that fails leaves no header that counts as up to date.
 .DELETE_ON_ERROR:
