@@ -16,9 +16,9 @@ Test inside mwc's `mwc-dev` distrobox; the host lacks grim.
 | `make test` | `tests/ui.sh`: osDisplay in a headless mwc's dock with a fake `/proc` (`OSD_PROC`), checked in screenshots; log in `build/ui.log`, osDisplay's own in `build/ui-osDisplay.log`, a failing screenshot in `build/ui-last.png` |
 
 `make test` needs a built mwc with `build/vinput`, `build/pngtool` and `build/xdgc`
-in `MWC_DIR` (default `../mwc`) and the sisters built in `../deskControl`,
-`../pulseControl` and `../digitalClock` (or `DESK`, `PULSE`, `CLOCK`), or `SKIP_SISTERS=1`. Polling helpers come from mwc's `tests/lib.sh`. To
-check that a test fails without a fix, build the old `osd.c` elsewhere and run
+in `MWC_DIR` (default `../mwc`), the Adwaita cursor theme and the sisters built in
+`../deskControl`, `../pulseControl` and `../digitalClock` (or `DESK`, `PULSE`, `CLOCK`),
+or `SKIP_SISTERS=1`. Polling helpers come from mwc's `tests/lib.sh`. To check that a test fails without a fix, build the old `osd.c` elsewhere and run
 `OSD=/path/to/old/osDisplay tests/ui.sh`.
 
 

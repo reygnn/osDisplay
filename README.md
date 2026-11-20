@@ -103,8 +103,8 @@ against all three, the bars of cores, memory and swap, cores going offline, the
 interval, that the window grows and never shrinks, the bevels, its border and focus,
 the colours, HiDPI, the cursor at a scale its size needs and the keys. It needs a
 built mwc with `build/vinput`, `build/pngtool` and `build/xdgc` in `MWC_DIR` (by
-default `../mwc`), grim, and the sisters built in `../deskControl`, `../pulseControl`
-and `../digitalClock`, or named in `DESK`, `PULSE` and `CLOCK`; without them set
-`SKIP_SISTERS=1`. mwc's development box has all of it:
+default `../mwc`), grim, the Adwaita cursor theme, and the sisters built in
+`../deskControl`, `../pulseControl` and `../digitalClock`, or named in `DESK`, `PULSE`
+and `CLOCK`; without them set `SKIP_SISTERS=1`. mwc's development box has all of it:
 
     distrobox enter mwc-dev -- make test

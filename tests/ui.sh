@@ -5,8 +5,8 @@
 # from screenshots. It has its own sockets and touches no running session.
 #
 # Needs a built mwc with build/vinput, build/pngtool and build/xdgc in MWC_DIR (by
-# default ../mwc), grim, and the sisters in ../deskControl, ../pulseControl and
-# ../digitalClock (or DESK, PULSE and CLOCK, or SKIP_SISTERS=1). Output goes to
+# default ../mwc), grim, the Adwaita cursor theme, and the sisters in ../deskControl,
+# ../pulseControl and ../digitalClock (or DESK, PULSE and CLOCK, or SKIP_SISTERS=1). Output goes to
 # build/ui.log, osDisplay's own to build/ui-osDisplay.log, the sisters' to
 # build/ui-sisters.log.
 OSD_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -33,8 +33,15 @@ export LC_ALL=C.UTF-8
 unset MWC_INACTIVE MWC_ACTIVE OSD_INTERVAL PULSE_SERVER
 # The font is fixed: a font in the environment, as the tools once read, changes nothing.
 export OSD_FONT="Sans 20" DC_FONT="Sans 20" SC_FONT="Sans 20" CLOCK_FONT="Sans 20"
-# The cursor test counts on Adwaita's sizes.
-unset XCURSOR_THEME XCURSOR_PATH XCURSOR_SIZE
+unset XCURSOR_PATH XCURSOR_SIZE
+# The cursor checks count on Adwaita's sizes; "default" is only Adwaita where the
+# system says so, so name it, and refuse to run without it.
+export XCURSOR_THEME=Adwaita
+for d in "$HOME/.local/share/icons" "$HOME/.icons" /usr/share/icons /usr/share/pixmaps; do
+	[ -d "$d/Adwaita/cursors" ] && break
+	d=
+done
+[ -n "$d" ] || { echo "FAIL: no Adwaita cursor theme (adwaita-icon-theme)"; exit 1; }
 SISTERS_LOG=$OSD_DIR/build/ui-sisters.log
 : >"$OSD_LOG"
 : >"$SISTERS_LOG"
