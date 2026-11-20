@@ -16,7 +16,7 @@ Test inside mwc's `mwc-dev` distrobox; the host lacks grim.
 
 `make test` needs a built mwc with `build/vinput`, `build/pngtool` and `build/xdgc`
 in `MWC_DIR` (default `../mwc`) and the sisters built in `../deskControl`,
-`../pulseControl` and `../mClock` (or `DESK`, `PULSE`, `CLOCK`), or `SKIP_SISTERS=1`. Polling helpers come from mwc's `tests/lib.sh`. To
+`../pulseControl` and `../digitalClock` (or `DESK`, `PULSE`, `CLOCK`), or `SKIP_SISTERS=1`. Polling helpers come from mwc's `tests/lib.sh`. To
 check that a test fails without a fix, build the old `osd.c` elsewhere and run
 `OSD=/path/to/old/osDisplay tests/ui.sh`.
 

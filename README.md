@@ -100,7 +100,7 @@ interval, that the window grows and never shrinks, the bevels, its border and fo
 the colours, HiDPI, the cursor at a scale its size needs and the keys. It needs a
 built mwc with `build/vinput`, `build/pngtool` and `build/xdgc` in `MWC_DIR` (by
 default `../mwc`), grim, and the sisters built in `../deskControl`, `../pulseControl`
-and `../mClock`, or named in `DESK`, `PULSE` and `CLOCK`; without them set
+and `../digitalClock`, or named in `DESK`, `PULSE` and `CLOCK`; without them set
 `SKIP_SISTERS=1`. mwc's development box has all of it:
 
     distrobox enter mwc-dev -- make test

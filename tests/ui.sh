@@ -6,7 +6,7 @@
 #
 # Needs a built mwc with build/vinput, build/pngtool and build/xdgc in MWC_DIR (by
 # default ../mwc), grim, and the sisters in ../deskControl, ../pulseControl and
-# ../mClock (or DESK, PULSE and CLOCK, or SKIP_SISTERS=1). Output goes to
+# ../digitalClock (or DESK, PULSE and CLOCK, or SKIP_SISTERS=1). Output goes to
 # build/ui.log, osDisplay's own to build/ui-osDisplay.log, the sisters' to
 # build/ui-sisters.log.
 OSD_DIR=$(cd "$(dirname "$0")/.." && pwd)
@@ -16,7 +16,7 @@ OSD_LOG=$OSD_DIR/build/ui-osDisplay.log
 MWC_DIR=${MWC_DIR:-$OSD_DIR/../mwc}
 DESK=${DESK:-$OSD_DIR/../deskControl/deskControl}
 PULSE=${PULSE:-$OSD_DIR/../pulseControl/pulseControl}
-CLOCK=${CLOCK:-$OSD_DIR/../mClock/digitalClock}
+CLOCK=${CLOCK:-$OSD_DIR/../digitalClock/digitalClock}
 SKIP_SISTERS=${SKIP_SISTERS:-0}
 [ -x "$OSD" ] || { echo "FAIL: $OSD not built"; exit 1; }
 [ -d "$MWC_DIR" ] || { echo "FAIL: no mwc in $MWC_DIR (set MWC_DIR)"; exit 1; }
