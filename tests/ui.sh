@@ -450,7 +450,16 @@ cursor_kept() {
 		if (cur != "" && att[cur] == f[2]) print f[2]
 	}' "$WL_LOG"
 }
-destroyed() { grep -c 'wl_buffer#[0-9]*\.destroy()' "$WL_LOG"; }
+# The buffer last attached to the cursor's surface: the theme's that shows now. The
+# window's own buffers go at a scale change too, so only this one tells the theme went.
+cursor_buf() {
+	local s
+	s=$(grep -o 'set_cursor([0-9]*, wl_surface#[0-9]*' "$WL_LOG" | tail -1 | sed 's/.*#//')
+	grep -o "wl_surface#$s\.attach(wl_buffer#[0-9]*" "$WL_LOG" | tail -1 | sed 's/.*#//'
+}
+gone() { # buffer line: destroyed in the log from that line on
+	tail -n +"$2" "$WL_LOG" | grep -q "wl_buffer#$1\.destroy()"
+}
 set_scale() { # n: the output's scale, reloaded
 	sed -i '/outputScale/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
 	echo "Mwm*HEADLESS-1*outputScale: $1" >>"$XDG_CONFIG_HOME/mwc/mwmrc"
@@ -482,7 +491,8 @@ check "and the viewport shows it at 8, not 30 or 10" "[ \"\$(cursor_dest)\" = '8
 cw4=$(global cursor cw)
 echo "cursor $(global cursor cw)x$(global cursor ch)@$(global cursor cscale)"
 # Back to 2 with the pointer kept on the window: the cursor follows without an enter.
-GONE=$(destroyed) SINCE=$(($(wc -l <"$WL_LOG") + 1))
+OLD_BUF=$(cursor_buf) SINCE=$(($(wc -l <"$WL_LOG") + 1))
+[ -n "$OLD_BUF" ] || fail "no buffer on the cursor surface"
 set_scale 2
 check "a new scale loads the cursor again at once" \
 	"cursor_ok && [ \"\$(global cursor cw)\" != $cw4 ] && [ \"\$(global cursor cscale)\" = 2 ]"
@@ -491,7 +501,7 @@ check "there the scale divides it, and the viewport is unset" \
 	"[ \"\$(cursor_dest)\" = '-1 -1' ]"
 # The old theme goes once the new cursor is on the surface: never a destroyed buffer
 # under the pointer, and no empty cursor in between.
-check "the old theme is gone" "[ \"\$(destroyed)\" -gt $GONE ]"
+check "the old theme is gone" "gone $OLD_BUF $SINCE"
 [ -z "$(cursor_kept)" ] || fail "the cursor showed destroyed buffers: $(cursor_kept)"
 csurf=$(grep -o 'set_cursor([0-9]*, wl_surface#[0-9]*' "$WL_LOG" | tail -1 | sed 's/.*#//')
 tail -n +"$SINCE" "$WL_LOG" | grep -q "wl_surface#$csurf\.attach(nil" &&
@@ -503,9 +513,10 @@ LEFT=$(grep -c 'wl_pointer#[0-9]*\.leave(' "$WL_LOG")
 do_input move 1000 600
 check "the pointer leaves osDisplay" \
 	"[ \"\$(grep -c 'wl_pointer#[0-9]*\.leave(' \"$WL_LOG\")\" -gt $LEFT ]"
-GONE=$(destroyed)
+OLD_BUF=$(cursor_buf) SINCE=$(($(wc -l <"$WL_LOG") + 1))
+[ -n "$OLD_BUF" ] || fail "no buffer on the cursor surface"
 set_scale 4
-check "the old theme is gone" "[ \"\$(destroyed)\" -gt $GONE ]"
+check "the old theme is gone" "gone $OLD_BUF $SINCE"
 [ -z "$(cursor_kept)" ] || fail "the cursor surface kept destroyed buffers: $(cursor_kept)"
 echo "ok: with the pointer off it, the surface lets go before the old theme goes"
 stop_osd
@@ -518,6 +529,37 @@ do_input move $((2 * (X0 + OW / 2) + 2)) $((2 * (Y0 + OH / 2)))
 check "XCURSOR_SIZE=2000000000 gives the largest cursor" \
 	"cursor_ok && [ \"\$(global cursor cw)\" = 96 ]"
 stop_osd
+
+# 900 cores are about 9000 pixels wide, 36000 at scale 4, past the 32767 Cairo draws:
+# drawn at 3 and enlarged by mwc, and no shm pool past an int. Only the buffer scale
+# tells: a buffer Cairo cannot draw is black, and mwc keeps showing the one before.
+set_scale 4
+many=()
+for ((i = 0; i < 900; i++)); do many+=("500 500"); done
+set_stat "${many[@]}"
+WAYLAND_DEBUG=1 OSD_OUT=$WL_LOG start_osd
+check "it is 900 cores wide" "[ \"\$(get osDisplay w)\" -gt 9000 ]"
+check "900 cores at scale 4 go at buffer scale 3" \
+	"grep -q 'wl_surface#[0-9]*\.set_buffer_scale(3)' \"$WL_LOG\""
+face=
+for ((i = 0; i < 30; i++)); do
+	shoot && face=$(pixel $((4 * X0 + 400)) $((4 * Y0 + 32)))   # above the field
+	[ "$face" = $BG ] && break
+	sleep 0.1
+done
+[ "$face" = $BG ] || { cp "$SHOT" "$ERR_SHOT" 2>/dev/null
+	fail "900 cores at scale 4: the face is $face, not $BG (screenshot in $ERR_SHOT)"; }
+echo "ok: 900 cores at scale 4 are drawn"
+stop_osd
+
+# A poll that fails is told as itself, not as a lost connection with no error.
+FAILPOLL=$OSD_DIR/build/failpoll.so
+[ -f "$FAILPOLL" ] || fail "$FAILPOLL not built (make build/failpoll.so)"
+err=$(LD_PRELOAD=$FAILPOLL WAYLAND_DISPLAY=wayland-0 timeout 10 "$OSD" 2>&1 >/dev/null)
+st=$?
+[ $st = 1 ] && [ "$err" = "osDisplay: poll: Cannot allocate memory" ] ||
+	fail "a failing poll: status $st, \"$err\""
+echo "ok: a failing poll is told as such"
 
 VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\(.*\)"/\1/p' "$OSD_DIR/version.h")
 [ "$("$OSD" -v)" = "osDisplay $VERSION" ] || fail "-v: $("$OSD" -v)"

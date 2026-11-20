@@ -67,8 +67,12 @@ uninstall:
 
 # Needs a built mwc next to this directory, or in MWC_DIR, plus grim. Compares the
 # height with deskControl, pulseControl and digitalClock if they are built.
-test: osDisplay
+test: osDisplay build/failpoll.so
 	tests/ui.sh
+
+# A poll that fails, for the test of that error.
+build/failpoll.so: tests/failpoll.c | build
+	$(CC) -std=c11 -Wall -Wextra -shared -fPIC -o $@ tests/failpoll.c -ldl
 
 clean:
 	rm -rf osDisplay build

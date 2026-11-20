@@ -5,11 +5,11 @@
  *
  * libwayland, xkbcommon, Pango and Cairo, no toolkit; util.c holds what is tested
  * without Wayland. One bar per core, left to right in a sunken field, and beside it
- * a field with a bar for memory and one for swap. The window is as high as the sister tools with the same font, so
- * they line up in mwc's dock; more cores make it wider, never higher. It reads the
- * same colours as mwc: MWC_INACTIVE / MWC_ACTIVE from the environment, else
- * Mwm*background and Mwm*activeBackground from ~/.config/mwc/mwmrc, else the Motif
- * defaults.
+ * a field with a bar for memory and one for swap. The window is as high as the
+ * sister tools with the same font, so they line up in mwc's dock; more cores make it
+ * wider, never higher. It reads the same colours as mwc: MWC_INACTIVE / MWC_ACTIVE
+ * from the environment, else Mwm*background and Mwm*activeBackground from
+ * ~/.config/mwc/mwmrc, else the Motif defaults.
  *
  * It asks for no server-side decoration and draws its own frame: only mwm's thin
  * border, no title bar, no buttons, no resize handles. The border takes the active
@@ -624,19 +624,20 @@ static void paint(void)
 static int draw(void)
 {
 	layout();
-	struct shmbuf *b = get_buffer(W * scale, H * scale);
+	int s = draw_scale(W, scale);
+	struct shmbuf *b = get_buffer(W * s, H * s);
 	if (!b)
 		return 0;
 	cr = b->cr;
 	cairo_identity_matrix(cr);
-	cairo_scale(cr, scale, scale);
+	cairo_scale(cr, s, s);
 	paint();
 	cairo_surface_flush(b->cs);
 	if (frame)
 		wl_callback_destroy(frame);
 	frame = wl_surface_frame(surface);
 	wl_callback_add_listener(frame, &frame_listener, NULL);
-	wl_surface_set_buffer_scale(surface, scale);
+	wl_surface_set_buffer_scale(surface, s);
 	wl_surface_attach(surface, b->wl, 0, 0);
 	wl_surface_damage_buffer(surface, 0, 0, b->w, b->h);
 	wl_surface_commit(surface);
@@ -1171,8 +1172,10 @@ int main(int argc, char **argv)
 				pfd[0].events |= POLLOUT;
 		}
 		if (poll(pfd, 2, -1) < 0 && errno != EINTR) {
+			/* Not the connection: libwayland has no error to tell. */
+			fprintf(stderr, "osDisplay: poll: %s\n", strerror(errno));
 			wl_display_cancel_read(dpy);
-			lost_connection();
+			exit(1);
 		}
 		if (pfd[0].revents & (POLLIN | POLLERR | POLLHUP)) {
 			if (wl_display_read_events(dpy) < 0)

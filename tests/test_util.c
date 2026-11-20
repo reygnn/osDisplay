@@ -1,4 +1,4 @@
-/* test_util.c - the buffer scale and the seats: make check */
+/* test_util.c - the buffer and drawing scales and the seats: make check */
 #include <stdio.h>
 
 #include "util.h"
@@ -20,6 +20,21 @@ static void test_buffer_scale(void)
 	CHECK(buffer_scale(0) == 0);
 	CHECK(buffer_scale(-1) == 0);
 	CHECK(buffer_scale(-0x7fffffff - 1) == 0);
+}
+
+static void test_draw_scale(void)
+{
+	CHECK(draw_scale(100, 1) == 1);
+	CHECK(draw_scale(100, 16) == 16);
+	CHECK(draw_scale(2047, 16) == 16);              /* 32752 */
+	CHECK(draw_scale(2048, 16) == 15);              /* 32768 is one too many */
+	CHECK(draw_scale(16383, 2) == 2);
+	CHECK(draw_scale(16384, 2) == 1);
+	/* 900 cores, about 9000 wide: 36000 at 4, 27000 at 3 */
+	CHECK(draw_scale(9000, 4) == 3);
+	/* past Cairo at 1 too: stays 1, black, and small enough for an int */
+	CHECK(draw_scale(41000, 16) == 1);
+	CHECK(draw_scale(CAIRO_MAX_W, 1) == 1);
 }
 
 static int next_is(const struct seats *s, unsigned name, unsigned ver)
@@ -73,6 +88,7 @@ static void test_seats(void)
 int main(void)
 {
 	test_buffer_scale();
+	test_draw_scale();
 	test_seats();
 	printf("test_util: %d/%d\n", checks - failures, checks);
 	return failures != 0;

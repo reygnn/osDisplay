@@ -7,12 +7,10 @@ Limits of osDisplay that are known and left as they are.
 
 Every core adds 10 pixels. With swap, 64 cores make the window 694 pixels wide and 128
 cores 1334, more than a screen 1280 pixels wide holds beside the other tools. There is
-no second row. Cairo draws at most 32767 pixels wide, so more than about 3270 cores,
-at scale 2 about 1630 and at scale 4 about 810, leave the window black. Cores from
-number 4096 on get no bar.
-
-deskControl is as high as osDisplay only with two desktops or more; with one it has a
-single row of buttons.
+no second row. Cairo draws at most 32767 pixels wide: a window wider than that at its
+scale, at scale 2 from about 1630 cores and at scale 4 from about 810, is drawn at the
+largest scale that fits and enlarged by the compositor, blurred. More than about 3270
+cores leave the window black at every scale. Cores from number 4096 on get no bar.
 
 The width only grows: after a core went offline or swap was switched off, the window
 stays that wide until osDisplay restarts. Cores are placed by their number, so a gap

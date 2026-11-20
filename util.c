@@ -8,6 +8,13 @@ int buffer_scale(int factor)
 	return factor > 16 ? 16 : factor;       /* no output is denser */
 }
 
+int draw_scale(int w, int s)
+{
+	while (s > 1 && w > CAIRO_MAX_W / s)
+		s--;
+	return s;
+}
+
 int seats_add(struct seats *s, unsigned name, unsigned ver)
 {
 	if (s->n == MAX_SEATS)

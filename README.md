@@ -6,8 +6,8 @@ the look of the Motif window manager. It is made for the dock of
 [deskControl](https://github.com/reygnn/deskControl),
 [pulseControl](https://github.com/reygnn/pulseControl) and
 [digitalClock](https://github.com/reygnn/digitalClock), and runs on any Wayland
-compositor with xdg-shell on Linux. One C file on libwayland, xkbcommon, Cairo and
-Pango, no toolkit.
+compositor with xdg-shell on Linux. Written in C on libwayland, xkbcommon, Cairo and
+Pango, no toolkit: `osd.c`, and `util.c` for what is tested without Wayland.
 
 
 ## Build
@@ -50,11 +50,10 @@ boot. Memory in use is what `MemAvailable` in `/proc/meminfo` does not count, so
 cache the kernel can drop counts as free.
 
 The window is as high as deskControl, pulseControl and digitalClock, so they line up
-in the dock (deskControl from two desktops on). Its height comes from a font that is
-fixed as DejaVu Sans 10, the same in all four tools; osDisplay writes nothing in it.
-Without DejaVu Sans it says so on stderr. More cores make it wider, never higher. It
-never shrinks: a core that goes offline keeps an empty bar, and the swap bar stays
-after `swapoff`.
+in the dock. Its height comes from a font that is fixed as DejaVu Sans 10, the same in
+all four tools; osDisplay writes nothing in it. Without DejaVu Sans it says so on
+stderr. More cores make it wider, never higher. It never shrinks: a core that goes
+offline keeps an empty bar, and the swap bar stays after `swapoff`.
 
 It draws only mwm's thin border, no title bar, buttons or resize handles. The border
 takes the active colour while osDisplay has the keyboard. The colours are mwc's:
@@ -94,7 +93,7 @@ What is open is written down in CAVEATS.
     make check
 
 runs the unit tests of the part without Wayland under ASan and UBSan: the buffer
-scale and the list of seats (`util.c`). It needs no compositor.
+and drawing scales and the list of seats (`util.c`). It needs no compositor.
 
     make test
 
