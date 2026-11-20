@@ -35,7 +35,7 @@ largest buffer scale that does divide it and is that much larger than elsewhere.
 
 ## Numbers
 
-There are no numbers and no labels, only bars. `OSD_FONT` only sets the height.
+There are no numbers and no labels, only bars.
 
 The first sample after the start, and after a core comes back, is the average since
 boot, not the load of the moment.

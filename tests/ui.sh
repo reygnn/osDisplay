@@ -30,7 +30,9 @@ done
 
 export MWC_TEST_STATE=$SMOKE_DIR/state
 export LC_ALL=C.UTF-8
-unset MWC_INACTIVE MWC_ACTIVE OSD_FONT OSD_INTERVAL DC_FONT SC_FONT CLOCK_FONT PULSE_SERVER
+unset MWC_INACTIVE MWC_ACTIVE OSD_INTERVAL PULSE_SERVER
+# The font is fixed: a font in the environment, as the tools once read, changes nothing.
+export OSD_FONT="Sans 20" DC_FONT="Sans 20" SC_FONT="Sans 20" CLOCK_FONT="Sans 20"
 # The cursor test counts on Adwaita's sizes.
 unset XCURSOR_THEME XCURSOR_PATH XCURSOR_SIZE
 SISTERS_LOG=$OSD_DIR/build/ui-sisters.log
@@ -304,22 +306,22 @@ width_is "four cores again keep the width" 8 2
 check "the height never changes" "[ \"\$(get osDisplay h)\" = $H0 ]"
 stop_osd
 
-# The font sets the height, also without the sisters to compare: a larger one makes it
-# higher, and one without a size is taken at 10 points, not as nothing at all.
-font_h() { # font: the height osDisplay takes with it
-	OSD_FONT=$1 start_osd >/dev/null
-	echo "$OH"
-	stop_osd
-}
-h_sans=$(font_h "Sans 10")
-[ "$h_sans" = "$H0" ] || fail "OSD_FONT=\"Sans 10\" is $h_sans high, the default $H0"
-h_big=$(font_h "Sans 20")
-[ "$h_big" -gt "$H0" ] || fail "OSD_FONT=\"Sans 20\" is $h_big high, not more than $H0"
-h_mono=$(font_h "Monospace")
-h_mono10=$(font_h "Monospace 10")
-[ "$h_mono" = "$h_mono10" ] ||
-	fail "OSD_FONT=Monospace is $h_mono high, \"Monospace 10\" $h_mono10"
-echo "ok: OSD_FONT sets the height: $H0, $h_big at 20 points, $h_mono without a size"
+# The font is fixed, also without the sisters to compare: OSD_FONT is ignored.
+OSD_FONT= start_osd
+[ "$OH" = "$H0" ] || fail "without OSD_FONT it is $OH high, with \"Sans 20\" $H0"
+stop_osd
+echo "ok: OSD_FONT is ignored"
+# Without DejaVu Sans it says so.
+mkdir -p "$SMOKE_DIR/fonts"
+cp "$(fc-match -f '%{file}' 'DejaVu Sans Mono')" "$SMOKE_DIR/fonts/DejaVuSansMono.ttf"
+printf '<?xml version="1.0"?>\n<fontconfig><dir>%s</dir><cachedir>%s</cachedir></fontconfig>\n' \
+	"$SMOKE_DIR/fonts" "$SMOKE_DIR/fc-cache" >"$SMOKE_DIR/fonts.conf"
+: >"$SMOKE_DIR/nofont.log"
+FONTCONFIG_FILE=$SMOKE_DIR/fonts.conf OSD_OUT=$SMOKE_DIR/nofont.log start_osd
+stop_osd
+grep -q "osDisplay: font DejaVu Sans not found" "$SMOKE_DIR/nofont.log" ||
+	fail "no warning without DejaVu Sans: $(head -n 3 "$SMOKE_DIR/nofont.log")"
+echo "ok: without DejaVu Sans it warns"
 start_osd
 
 # ---- the frame ---------------------------------------------------------------------------

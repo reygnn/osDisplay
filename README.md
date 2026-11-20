@@ -49,10 +49,12 @@ A core's bar shows its load since the last sample, the first one the average sin
 boot. Memory in use is what `MemAvailable` in `/proc/meminfo` does not count, so the
 cache the kernel can drop counts as free.
 
-The window is as high as deskControl, pulseControl and digitalClock with the same
-font, so they line up in the dock (deskControl from two desktops on). More cores make
-it wider, never higher. It never shrinks: a core that goes offline keeps an empty bar,
-and the swap bar stays after `swapoff`.
+The window is as high as deskControl, pulseControl and digitalClock, so they line up
+in the dock (deskControl from two desktops on). Its height comes from a font that is
+fixed as DejaVu Sans 10, the same in all four tools; osDisplay writes nothing in it.
+Without DejaVu Sans it says so on stderr. More cores make it wider, never higher. It
+never shrinks: a core that goes offline keeps an empty bar, and the swap bar stays
+after `swapoff`.
 
 It draws only mwm's thin border, no title bar, buttons or resize handles. The border
 takes the active colour while osDisplay has the keyboard. The colours are mwc's:
@@ -76,7 +78,6 @@ With Alt, Super or Ctrl held no key acts, except Ctrl+Q and Ctrl+W.
 | Variable | Default | |
 |---|---|---|
 | `OSD_INTERVAL` | `1000` | milliseconds between two samples, 100 to 3600000 |
-| `OSD_FONT` | `Sans 10` | a Pango font, as `DC_FONT` of deskControl; nothing is written in it, its size sets the window's height |
 | `MWC_INACTIVE`, `MWC_ACTIVE` | `#aeb2c3`, `#7387ad` | background; the bars and the border with the keyboard |
 | `OSD_PROC` | `/proc` | where `stat` and `meminfo` are read, for the tests |
 
