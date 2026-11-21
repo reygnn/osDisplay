@@ -568,7 +568,13 @@ st=$?
 	fail "a failing poll: status $st, \"$err\""
 echo "ok: a failing poll is told as such"
 
-VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\(.*\)"/\1/p' "$OSD_DIR/version.h")
+# The version from version.h, then the commit the build is from where git knows it.
+VERSION=$(sed -n 's/^#define OSDISPLAY_VERSION "\([^"]*\)".*/\1/p' "$OSD_DIR/version.h")
+if commit=$(TZ=UTC0 git -C "$OSD_DIR" log -1 --format=%cd.%h \
+		--date=format-local:%Y%m%d.%H%M 2>/dev/null); then
+	git -C "$OSD_DIR" diff --quiet HEAD || commit=$commit.dirty
+	VERSION=$VERSION+$commit
+fi
 [ "$("$OSD" -v)" = "osDisplay $VERSION" ] || fail "-v: $("$OSD" -v)"
 "$OSD" -v x >/dev/null 2>&1 && fail "-v with another argument is taken"
 echo "ok: -v prints the version"

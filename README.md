@@ -36,7 +36,9 @@ and in `~/.config/mwc/autostart`:
 The order of the `dock` lines is the order in the dock; with the default
 `dockPlacement`, `right bottom`, the first one sits in the corner.
 
-`-v` prints the version, which is set in `version.h`.
+`-v` prints the version, which is set in `version.h`,
+and the commit built, as `VERSION+DATE.TIME.HASH` with its commit time in UTC
+and `.dirty` for changes not committed.
 
 
 ## Look
