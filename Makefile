@@ -56,7 +56,7 @@ test: build/mtkdemo-asan build/mtkdemo build/failpoll.so
 # For tests/ui.sh: a poll that fails. Preloaded into build/mtkdemo; ASan's runtime
 # must come first and would refuse it.
 build/failpoll.so: tests/failpoll.c | build
-	$(CC) -shared -fPIC -O2 -o $@ $< -ldl
+	$(CC) -std=c11 -Wall -Wextra -Werror -shared -fPIC -O2 -o $@ $< -ldl
 
 # make analyze: GCC's static analyzer over every source file, findings as errors.
 analyze: $(MTK_PROTO_H)
