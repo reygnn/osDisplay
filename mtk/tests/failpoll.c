@@ -22,5 +22,6 @@ int poll(struct pollfd *fds, nfds_t n, int timeout)
  * through here. */
 int __poll_chk(struct pollfd *fds, nfds_t n, int timeout, size_t len)
 {
+	(void)len;
 	return poll(fds, n, timeout);
 }
