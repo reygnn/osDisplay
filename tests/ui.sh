@@ -590,6 +590,15 @@ done
 [ -s "$OSD_LOG" ] && fail "osDisplay wrote to its log: $(head -n 3 "$OSD_LOG")"
 echo "ok: osDisplay's log is empty"
 
+# ---- a layout without Latin letters ------------------------------------------------
+# q and Ctrl+Q are the key that is Q in the first Latin layout, as Qt reads it.
+stop_vinput
+start_vinput 1280 720 ru,us
+for k in q ctrl+q; do
+	start_osd
+	quits_on "$k"
+done
+
 for p in $PIDS_sisters; do
 	kill "$p" 2>/dev/null
 	wait "$p" 2>/dev/null

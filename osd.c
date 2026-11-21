@@ -318,7 +318,7 @@ static void focus(struct mtk_window *w, int in, void *data)
 
 static void key(struct mtk_window *w, const struct mtk_key *k, void *data)
 {
-	if (mtk_key_quits(k->sym, k->mods))
+	if (mtk_key_quits(k->latin, k->mods))
 		mtk_quit(m, 0);
 }
 
