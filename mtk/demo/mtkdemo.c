@@ -7,6 +7,9 @@
  *   MTKDEMO_FIXED=1      always 300x120, as a dock tool
  *   MTKDEMO_WIDTH=N      N wide instead of 300
  *   MTKDEMO_DECO=1       ask for mwc's frame
+ *   MTKDEMO_MAXIMIZED=1  maximized from the start
+ *   MTKDEMO_OWN_LOOP=1   its own poll around mtk_before_poll() and mtk_after_poll(),
+ *                        as a client with another library's loop has it
  *
  * Keys: text into the field, BackSpace, Esc or Ctrl+Q quits. SIGUSR1 counts
  * through a pipe the loop watches.
@@ -37,6 +40,7 @@ static unsigned keys, repeats, clicks, signals, ticks, scrolls;
 static int steps, pressed, press_x, press_y, focused, scale = 1;
 static const char *state_path;
 static int sig_pipe[2] = { -1, -1 };
+static int done;                /* asked to quit, for the own loop */
 
 static void state_write(void)
 {
@@ -122,6 +126,7 @@ static void key(struct mtk_window *w, const struct mtk_key *k, void *data)
 	repeats += k->repeat;
 	if (k->sym == XKB_KEY_Escape ||
 	    ((k->mods & MTK_MOD_CTRL) && (k->sym == XKB_KEY_q || k->sym == XKB_KEY_Q))) {
+		done = 1;
 		mtk_quit(m, 0);
 		return;
 	}
@@ -222,6 +227,28 @@ static void after_events(struct mtk *mm, void *data)
 	mtk_timer(mm, 20, after_events, NULL);
 }
 
+/* The loop a client with another library's has: mtk's fd beside its own. */
+static int own_loop(void)
+{
+	while (!done) {
+		struct pollfd p[2];
+		int timeout = -1;
+		mtk_before_poll(m, &p[0], &timeout);
+		p[1] = (struct pollfd){ .fd = sig_pipe[0], .events = POLLIN };
+		if (poll(p, 2, timeout) < 0) {
+			if (errno != EINTR) {
+				perror("mtkdemo: poll");
+				return 1;
+			}
+			p[0].revents = p[1].revents = 0;
+		}
+		mtk_after_poll(m, p[0].revents);
+		if (p[1].revents)
+			signal_read(m, sig_pipe[0], p[1].revents, NULL);
+	}
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	if (argc > 1) {
@@ -235,6 +262,8 @@ int main(int argc, char **argv)
 	int width = e && atoi(e) > 0 ? atoi(e) : 300;
 	e = getenv("MTKDEMO_DECO");
 	int deco = e && *e == '1';
+	e = getenv("MTKDEMO_MAXIMIZED");
+	int maximized = e && *e == '1';
 
 	m = mtk_open(&(struct mtk_config){ .name = "mtkdemo" });
 	if (!m)
@@ -252,6 +281,7 @@ int main(int argc, char **argv)
 	win = mtk_window_new(m, &(struct mtk_window_config){
 		.width = width, .height = 120, .fixed = fixed, .min_width = 200,
 		.min_height = 100, .server_decoration = deco,
+		.maximized = maximized,
 	}, &listener, NULL);
 
 	if (pipe2(sig_pipe, O_NONBLOCK | O_CLOEXEC) < 0) {
@@ -262,7 +292,8 @@ int main(int argc, char **argv)
 	mtk_watch_fd(m, sig_pipe[0], POLLIN, signal_read, NULL);
 	mtk_timer(m, 100, tick, NULL);
 	mtk_timer(m, 0, after_events, NULL);
-	int status = mtk_run(m);
+	e = getenv("MTKDEMO_OWN_LOOP");
+	int status = e && *e == '1' ? own_loop() : mtk_run(m);
 
 	state_write();
 	g_object_unref(lo);

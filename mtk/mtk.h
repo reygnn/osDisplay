@@ -17,7 +17,7 @@
 #include <xkbcommon/xkbcommon.h>
 #include <xkbcommon/xkbcommon-compose.h>
 
-#define MTK_VERSION "0.3.0"
+#define MTK_VERSION "0.4.0"
 
 /* ---- colours (color.c) ---------------------------------------------------- */
 
@@ -311,6 +311,17 @@ struct mtk_pointer {
 #define MTK_STATE_FULLSCREEN 4u
 #define MTK_STATE_TILED 8u
 
+/* No window side is larger, whatever a compositor asks. */
+#define MTK_MAX_SIZE 8192
+
+/* A resizable window's size after a configure of cw x ch in states, into *w x *h
+ * (input.c). 0 leaves it to the client: its free size *fw x *fh, which it had last
+ * while not maximized, fullscreen or tiled, and which a free configure sets. Never
+ * below the minimum, which a tiling compositor may ignore, nor above
+ * MTK_MAX_SIZE. */
+void mtk_configure_size(int cw, int ch, unsigned states, int min_w, int min_h,
+	int *fw, int *fh, int *w, int *h);
+
 struct mtk_window_listener {
 	/* Draw w x h surface pixels on cr, which the scale is already applied to,
 	 * the antialias off (Pango's text keeps its own). Required. */
@@ -340,6 +351,7 @@ struct mtk_window_config {
 	int fixed;              /* always that size: min and max size alike */
 	int min_width, min_height;
 	int server_decoration;  /* ask for mwc's frame with xdg-decoration */
+	int maximized;          /* ask for it before the first commit */
 };
 
 struct mtk_window *mtk_window_new(struct mtk *m, const struct mtk_window_config *c,
@@ -348,7 +360,8 @@ void mtk_window_destroy(struct mtk_window *w);
 
 /* Paint again, at the next frame. */
 void mtk_window_redraw(struct mtk_window *w);
-/* The client's own size; for a fixed window also its min and max size. */
+/* The client's own size; for a fixed window also its min and max size. While not
+ * maximized, fullscreen or tiled it is the free size too. */
 void mtk_window_set_size(struct mtk_window *w, int width, int height);
 void mtk_window_set_min_size(struct mtk_window *w, int width, int height);
 void mtk_window_set_title(struct mtk_window *w, const char *title);
