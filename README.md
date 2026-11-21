@@ -78,7 +78,7 @@ With Alt, Super or Ctrl held no key acts, except Ctrl+Q and Ctrl+W.
 | Variable | Default | |
 |---|---|---|
 | `OSD_INTERVAL` | `1000` | milliseconds between two samples, 100 to 3600000 |
-| `MWC_INACTIVE`, `MWC_ACTIVE` | `#aeb2c3`, `#7387ad` | background; the bars and the border with the keyboard |
+| `MWC_INACTIVE`, `MWC_ACTIVE` | `#aaaaaa`, `#c6c1aa` | background; the bars and the border with the keyboard |
 | `OSD_PROC` | `/proc` | where `stat` and `meminfo` are read, for the tests |
 
 

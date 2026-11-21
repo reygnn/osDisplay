@@ -47,12 +47,12 @@ SISTERS_LOG=$OSD_DIR/build/ui-sisters.log
 : >"$SISTERS_LOG"
 SHOT=$SMOKE_DIR/ui.png
 ERR_SHOT=$OSD_DIR/build/ui-last.png
-BG=aeb2c3      # Motif's default background: the frame without the keyboard
-SEL=7387ad     # activeBackground: the frame with the keyboard, and the bars
-TRACK=999dac   # a bar's empty part: the background mixed 12 % towards black, not
+BG=aaaaaa      # mwc's default background, IRIX Base: the frame without the keyboard
+SEL=c6c1aa     # activeBackground: the frame with the keyboard, and the bars
+TRACK=969696   # a bar's empty part: the background mixed 12 % towards black, not
                # 25 % as mwc's trough, which is as bright as the bar
-LIGHT=dddee6   # Motif 2.3.8's light shadow of the background, as mwc's frames
-DARK=5e6069    # and its dark one
+LIGHT=dadada   # Motif 2.3.8's light shadow of the background, as mwc's frames
+DARK=5a5a5a    # and its dark one
 OUT=$((3 + 6))          # frame and padding: where the first field starts
 IN=$((OUT + 2 + 2))     # and its bevel and the padding to its bars
 BAR=8 STEP=10           # a bar's width, and the distance to the next one
@@ -397,7 +397,7 @@ SEL=ff0000 TRACK=a9a9a9
 core_is 0 100
 core_is 1 0
 quits_on q
-SEL=7387ad TRACK=999dac
+SEL=c6c1aa TRACK=969696
 sed -i '/ackground:/d' "$XDG_CONFIG_HOME/mwc/mwmrc"
 
 # rgb: takes hex digits only, not the sign strtoul would read; a line of the mwmrc
