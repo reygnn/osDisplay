@@ -51,8 +51,8 @@ BG=aeb2c3      # Motif's default background: the frame without the keyboard
 SEL=7387ad     # activeBackground: the frame with the keyboard, and the bars
 TRACK=999dac   # a bar's empty part: the background mixed 12 % towards black, not
                # 25 % as mwc's trough, which is as bright as the bar
-LIGHT=dbdce4   # the background mixed 55 % towards white: the bevel's lit side
-DARK=575962    # and halfway to black: its shaded side
+LIGHT=dddee6   # Motif 2.3.8's light shadow of the background, as mwc's frames
+DARK=5e6069    # and its dark one
 OUT=$((3 + 6))          # frame and padding: where the first field starts
 IN=$((OUT + 2 + 2))     # and its bevel and the padding to its bars
 BAR=8 STEP=10           # a bar's width, and the distance to the next one

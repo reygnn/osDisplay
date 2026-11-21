@@ -2,57 +2,22 @@
 
 PREFIX ?= /usr/local
 PKG_CONFIG ?= pkg-config
-PKGS = wayland-client wayland-cursor xkbcommon cairo pangocairo
+MTK_DIR = mtk
 
-WAYLAND_PROTOCOLS := $(shell $(PKG_CONFIG) --variable=pkgdatadir wayland-protocols)
-WAYLAND_SCANNER := $(shell $(PKG_CONFIG) --variable=wayland_scanner wayland-scanner)
-XDG_SHELL = $(WAYLAND_PROTOCOLS)/stable/xdg-shell/xdg-shell.xml
-VIEWPORTER = $(WAYLAND_PROTOCOLS)/stable/viewporter/viewporter.xml
+all: osDisplay
 
-PROTO_H = build/xdg-shell-client-protocol.h build/viewporter-client-protocol.h
-PROTO_C = build/xdg-shell-protocol.c build/viewporter-protocol.c
+include $(MTK_DIR)/mtk.mk
 
 # CPPFLAGS, CFLAGS, LDFLAGS and LDLIBS stay the user's, also on the command line:
 # `make CFLAGS=-O0` must not lose the include paths.
 CFLAGS ?= -O2 -g
-OSD_CFLAGS = -std=c11 -Wall -Wextra -Wno-unused-parameter -Ibuild \
-	$(shell $(PKG_CONFIG) --cflags $(PKGS))
-OSD_LIBS = $(shell $(PKG_CONFIG) --libs $(PKGS)) -lm
 
-MODS = util.c
-MODS_H = util.h
-
-all: osDisplay
-
-osDisplay: osd.c $(MODS) $(MODS_H) version.h $(PROTO_H) $(PROTO_C)
-	$(CC) $(OSD_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ osd.c $(MODS) \
-		$(PROTO_C) $(OSD_LIBS) $(LDLIBS)
-
-# The modules without Wayland, each under ASan and UBSan.
-UNIT_CFLAGS = -std=c11 -Wall -Wextra -g -O1 -fsanitize=address,undefined \
-	-fno-sanitize-recover=all
-UNITS = build/test_util
-
-build/test_util: tests/test_util.c util.c util.h | build
-	$(CC) $(UNIT_CFLAGS) -I. -o $@ tests/test_util.c util.c
-
-check: $(UNITS)
-	@for t in $(UNITS); do echo "$$t"; ./$$t || exit 1; done
+osDisplay: osd.c version.h $(MTK_DEPS)
+	$(CC) $(MTK_CFLAGS) $(CPPFLAGS) $(CFLAGS) $(LDFLAGS) -o $@ osd.c \
+		$(MTK_SRC) $(MTK_LIBS) $(LDLIBS)
 
 build:
 	mkdir -p build
-
-build/xdg-shell-client-protocol.h: $(XDG_SHELL) | build
-	$(WAYLAND_SCANNER) client-header $(XDG_SHELL) $@
-
-build/xdg-shell-protocol.c: $(XDG_SHELL) | build
-	$(WAYLAND_SCANNER) private-code $(XDG_SHELL) $@
-
-build/viewporter-client-protocol.h: $(VIEWPORTER) | build
-	$(WAYLAND_SCANNER) client-header $(VIEWPORTER) $@
-
-build/viewporter-protocol.c: $(VIEWPORTER) | build
-	$(WAYLAND_SCANNER) private-code $(VIEWPORTER) $@
 
 install: osDisplay
 	install -Dm755 osDisplay $(DESTDIR)$(PREFIX)/bin/osDisplay
@@ -70,13 +35,13 @@ uninstall:
 test: osDisplay build/failpoll.so
 	tests/ui.sh
 
-# A poll that fails, for the test of that error.
-build/failpoll.so: tests/failpoll.c | build
-	$(CC) -std=c11 -Wall -Wextra -shared -fPIC -o $@ tests/failpoll.c -ldl
+# A poll that fails, for the test of that error: mtk's.
+build/failpoll.so: $(MTK_DIR)/tests/failpoll.c | build
+	$(CC) -std=c11 -Wall -Wextra -shared -fPIC -o $@ $< -ldl
 
 clean:
 	rm -rf osDisplay build
 
-.PHONY: all install uninstall check test clean
+.PHONY: all install uninstall test clean
 # A wayland-scanner run that fails leaves no header that counts as up to date.
 .DELETE_ON_ERROR:
