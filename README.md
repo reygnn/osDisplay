@@ -6,8 +6,9 @@ the look of the Motif window manager. It is made for the dock of
 [deskControl](https://github.com/reygnn/deskControl),
 [pulseControl](https://github.com/reygnn/pulseControl) and
 [digitalClock](https://github.com/reygnn/digitalClock), and runs on any Wayland
-compositor with xdg-shell on Linux. Written in C on libwayland, xkbcommon, Cairo and
-Pango, no toolkit: `osd.c`, and `util.c` for what is tested without Wayland.
+compositor with xdg-shell on Linux. One C file, `osd.c`, on
+[mtk](https://github.com/reygnn/mtk), the toolkit of mwc's clients, vendored in `mtk/`:
+libwayland, xkbcommon, Cairo and Pango.
 
 
 ## Build
@@ -90,10 +91,7 @@ What is open is written down in CAVEATS.
 
 ## Testing
 
-    make check
-
-runs the unit tests of the part without Wayland under ASan and UBSan: the buffer
-and drawing scales and the list of seats (`util.c`). It needs no compositor.
+The scales, the seats and the colours are mtk's and tested there.
 
     make test
 

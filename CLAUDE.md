@@ -11,8 +11,7 @@ Test inside mwc's `mwc-dev` distrobox; the host lacks grim.
 
 | Target | |
 |---|---|
-| `make` | osDisplay: `osd.c` and the module `util.c` |
-| `make check` | `tests/test_util.c`: the module under ASan and UBSan, no compositor |
+| `make` | osDisplay: `osd.c` on mtk from `mtk/` |
 | `make test` | `tests/ui.sh`: osDisplay in a headless mwc's dock with a fake `/proc` (`OSD_PROC`), checked in screenshots; log in `build/ui.log`, osDisplay's own in `build/ui-osDisplay.log`, a failing screenshot in `build/ui-last.png` |
 
 `make test` needs a built mwc with `build/vinput`, `build/pngtool` and `build/xdgc`
@@ -24,6 +23,8 @@ or `SKIP_SISTERS=1`. Polling helpers come from mwc's `tests/lib.sh`. To check th
 
 ## Rules
 
+- `mtk/` is mtk, vendored with git subtree: changed in mtk's repository and taken
+  with `git subtree pull --prefix=mtk`, never edited here.
 - The window is as high as deskControl, pulseControl and digitalClock with the same
   font; a change to the layout keeps that, and the test compares it.
 - The window never shrinks by itself, so the dock does not jump.
