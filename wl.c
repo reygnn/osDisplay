@@ -57,6 +57,8 @@ struct mtk_window {
 	int min_w, min_h, sized_w, sized_h;     /* sized_: as told the compositor */
 	int cfg_w, cfg_h;               /* the toplevel configure's, until acked */
 	unsigned cfg_states;
+	unsigned states;                /* the last acked */
+	int free_w, free_h;             /* the size while not maximized or tiled */
 	int scale;                      /* buffer pixels per surface pixel */
 	int focused;
 	unsigned paints;
@@ -845,10 +847,10 @@ static void xdg_configure(void *data, struct xdg_surface *s, uint32_t serial)
 {
 	struct mtk_window *win = data;
 	xdg_surface_ack_configure(s, serial);
-	if (!win->fixed && win->cfg_w > 0 && win->cfg_h > 0) {
-		win->w = win->cfg_w;
-		win->h = win->cfg_h;
-	}
+	win->states = win->cfg_states;
+	if (!win->fixed)
+		mtk_configure_size(win->cfg_w, win->cfg_h, win->states, win->min_w,
+			win->min_h, &win->free_w, &win->free_h, &win->w, &win->h);
 	if (win->l->configure)
 		win->l->configure(win, win->cfg_w, win->cfg_h, win->cfg_states, win->data);
 	win->configured = 1;
@@ -960,6 +962,8 @@ struct mtk_window *mtk_window_new(struct mtk *m, const struct mtk_window_config 
 		.min_w = c->min_width, .min_h = c->min_height, .sized_w = -1,
 		.sized_h = -1,
 	};
+	win->free_w = win->w;
+	win->free_h = win->h;
 	win->next = m->windows;
 	m->windows = win;
 	win->surface = wl_compositor_create_surface(m->compositor);
@@ -979,6 +983,8 @@ struct mtk_window *mtk_window_new(struct mtk *m, const struct mtk_window_config 
 		zxdg_toplevel_decoration_v1_set_mode(win->deco,
 			ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
 	}
+	if (c->maximized)
+		xdg_toplevel_set_maximized(win->toplevel);
 	wl_surface_commit(win->surface);
 	return win;
 }
@@ -1020,6 +1026,10 @@ void mtk_window_set_size(struct mtk_window *win, int w, int h)
 		return;
 	win->w = w;
 	win->h = h;
+	if (!(win->states & (MTK_STATE_MAXIMIZED | MTK_STATE_FULLSCREEN | MTK_STATE_TILED))) {
+		win->free_w = w;
+		win->free_h = h;
+	}
 	tell_size(win);
 	win->dirty = 1;
 }

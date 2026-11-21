@@ -45,6 +45,23 @@ int mtk_buffer_scale(int factor)
 	return factor > 16 ? 16 : factor;       /* no output is denser */
 }
 
+static int size_in(int v, int min)
+{
+	v = v < min ? min : v;
+	return v > MTK_MAX_SIZE ? MTK_MAX_SIZE : v;
+}
+
+void mtk_configure_size(int cw, int ch, unsigned states, int min_w, int min_h,
+	int *fw, int *fh, int *w, int *h)
+{
+	*w = size_in(cw > 0 ? cw : *fw, min_w);
+	*h = size_in(ch > 0 ? ch : *fh, min_h);
+	if (!(states & (MTK_STATE_MAXIMIZED | MTK_STATE_FULLSCREEN | MTK_STATE_TILED))) {
+		*fw = *w;
+		*fh = *h;
+	}
+}
+
 int mtk_draw_scale(int w, int h, int s)
 {
 	while (s > 1 && (w > MTK_CAIRO_MAX / s || h > MTK_CAIRO_MAX / s))

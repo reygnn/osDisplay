@@ -271,6 +271,34 @@ TEST(scroll)
 	CHECK(s.acc == 0);
 }
 
+TEST(configure_size)
+{
+	int fw = 300, fh = 120, w, h;
+	/* 0: the client's own, the free size. */
+	mtk_configure_size(0, 0, 0, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 300 && h == 120);
+	/* Resized by hand: that is the free size now. */
+	mtk_configure_size(400, 150, MTK_STATE_ACTIVATED, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 400 && h == 150 && fw == 400 && fh == 150);
+	/* Maximized: the compositor's, the free size kept for later. */
+	mtk_configure_size(1280, 720, MTK_STATE_MAXIMIZED, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 1280 && h == 720 && fw == 400 && fh == 150);
+	mtk_configure_size(640, 720, MTK_STATE_TILED, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 640 && fw == 400);
+	mtk_configure_size(1280, 720, MTK_STATE_FULLSCREEN, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 1280 && fw == 400);
+	/* And back: 0 x 0 gives the free size again, not the maximized one. */
+	mtk_configure_size(0, 0, 0, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 400 && h == 150);
+	/* Never below the minimum nor above MTK_MAX_SIZE, one side at a time. */
+	mtk_configure_size(50, 0, 0, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == 200 && h == 150);
+	mtk_configure_size(100000, 30, 0, 200, 100, &fw, &fh, &w, &h);
+	CHECK(w == MTK_MAX_SIZE && h == 100);
+	mtk_configure_size(-5, -5, 0, 20000, 0, &fw, &fh, &w, &h);
+	CHECK(w == MTK_MAX_SIZE && h == 100);
+}
+
 int main(void)
 {
 	ctx = xkb_context_new(XKB_CONTEXT_NO_FLAGS);
@@ -287,6 +315,7 @@ int main(void)
 	RUN(repeat);
 	RUN(seats);
 	RUN(scroll);
+	RUN(configure_size);
 	RUN(cursor);
 	xkb_state_unref(st);
 	xkb_keymap_unref(map);

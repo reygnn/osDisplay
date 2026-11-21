@@ -215,7 +215,38 @@ echo "ok: $(ds size)"
 do_input key alt+F10
 check "maximized, larger" "[ \"\$(get mtkdemo w)\" -gt 600 ]"
 check "it paints that size" "[ \"\$(ds size)\" = \"\$(get mtkdemo w)x\$(get mtkdemo h)\" ]"
+# Back from it mwc leaves the size to the client: its own from before, not the
+# maximized one.
+do_input key alt+F10
+check "unmaximized, its size from before" "[ \"\$(ds size)\" = 300x120 ]"
+check "and mwc's" "[ \"\$(get mtkdemo w)x\$(get mtkdemo h)\" = 300x120 ]"
 quit_demo ctrl+q
+
+# Maximized before its first commit, mwc has no size of its own for it: back from
+# that it leaves the size to the client, which takes its own from the start.
+MTKDEMO_DECO=1 MTKDEMO_MAXIMIZED=1 start_demo
+check "maximized from the start" "[ \"\$(get mtkdemo max)\" = 1 ]"
+check "it paints the maximized size" "[ \"\$(ds size)\" = \"\$(get mtkdemo w)x\$(get mtkdemo h)\" ]"
+do_input key alt+F10
+check "unmaximized, its own size" "[ \"\$(ds size)\" = 300x120 ]"
+check "and mwc's" "[ \"\$(get mtkdemo w)x\$(get mtkdemo h)\" = 300x120 ]"
+quit_demo Escape
+
+# ---- a loop of the client's own --------------------------------------------------
+MTKDEMO_OWN_LOOP=1 MTKDEMO_FIXED=1 start_demo
+check "with its own loop, it has the keyboard" "[ \"\$(ds focus)\" = 1 ]"
+for k in o w n; do do_input key "$k"; done
+check "keys arrive" "[ \"\$(ds text)\" = own ]"
+r0=$(ds repeats)
+do_input press x
+check "a held key repeats" "[ \"\$(ds repeats)\" -ge $((r0 + 3)) ]"
+do_input lift x
+t0=$(ds ticks)
+check "mtk's timers run" "[ \"\$(ds ticks)\" -gt $((t0 + 2)) ]"
+kill -USR1 "$PID_demo"
+check "its own fd" "[ \"\$(ds signals)\" = 1 ]"
+pixel_at "its border is the active one" 0 60 $ACT_TOP
+quit_demo Escape
 
 # ---- past what Cairo draws -----------------------------------------------------
 # 9000 wide is 36000 at scale 4, past the 32767 Cairo draws: drawn at 3 and enlarged
